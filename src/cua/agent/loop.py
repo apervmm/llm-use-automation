@@ -87,6 +87,8 @@ class AgentLoop:
                         f"Reached max_steps ({step_limit}) without completing the goal.",
                     )
                     escalations_used += 1
+                    if decision == OperatorDecision.ABORT:
+                        return AgentRunResult(goal, False, "aborted_by_operator",transcript, outputs, escalations_used)
                     if decision == OperatorDecision.RESUME:
                         step_limit += self.STUCK_STEP_EXTENSION
                         state = snapshot(self.session, screenshot_path=f"{self.evidence_dir}/step_{step_num}_resumed.png")
@@ -105,6 +107,8 @@ class AgentLoop:
                     )
 
                     escalations_used += 1
+                    if decision == OperatorDecision.ABORT:
+                        return AgentRunResult(goal, False, "aborted_by_operator",transcript, outputs, escalations_used)
                     if decision == OperatorDecision.RESUME:
                         state = snapshot(self.session, screenshot_path=f"{self.evidence_dir}/step_{step_num}_resumed.png")
                         messages.append({"role": "user", "content": self._observation_text(goal, state)})
@@ -185,7 +189,7 @@ class AgentLoop:
     ) -> tuple[str, PageState, ElementRef | None]:
         
         name, inp = tool_use.name, tool_use.input
-        
+
         if name == "click":
             ref = state.find_ref(inp["element_name"], inp.get("role"))
             if ref is None:
