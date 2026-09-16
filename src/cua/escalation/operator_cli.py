@@ -13,12 +13,20 @@ def to_operator(request: EscalationRequest, state: HandoffState, evidence_dir: s
     print(f"Detail: {request.detail}")
 
  
-    action_note = input("Describe what you did [or press Enter to skip, then hit Enter to resume]: ")
-    if action_note.strip():
-        state.record_human_action(action_note.strip())
-    
-    state.resume_automation()
-    print("Resuming...\n")
+    action_note = input(
+        "Describe what you did"
+        "[type `abort` = stops the run or `enter` = to submit a note or skip]: "
+    )
+
+    decision = OperatorDecision.ABORT if action_note.strip().lower() == "abort" else OperatorDecision.RESUME
+
+    if decision == OperatorDecision.RESUME:
+        if action_note.strip():
+            state.record_human_action(action_note.strip())
+        state.resume_automation()
+        print("Resuming...\n")
+    else:
+        print("Aborting run at operator's request...\n")
 
 
     Path(evidence_dir).mkdir(parents=True, exist_ok=True)
@@ -31,9 +39,10 @@ def to_operator(request: EscalationRequest, state: HandoffState, evidence_dir: s
         "detail": request.detail,
         "screenshot_path": request.screenshot_path,
         "timestamp": request.timestamp,
+        "operator_decision": decision.value,
         "human_actions": state.human_actions_log,
     }, indent=2))
     print(f"Escalation record saved to {record_path}")
 
 
-    return OperatorDecision.RESUME
+    return decision
