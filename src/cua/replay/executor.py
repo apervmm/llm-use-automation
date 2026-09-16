@@ -38,6 +38,9 @@ def replay(
                     capability_id=capability.capability_id,
                     error="Replay aborted by operator during risky-confirmation escalation."
                 )
+            
+            if decision == OperatorDecision.RESUME:
+                confirmed = True 
 
         return ReplayResult(
             status=ReplayStatus.FAILURE,
