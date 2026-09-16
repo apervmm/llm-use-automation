@@ -183,8 +183,9 @@ class AgentLoop:
         state: PageState, 
         step_num: int
     ) -> tuple[str, PageState, ElementRef | None]:
+        
         name, inp = tool_use.name, tool_use.input
-
+        
         if name == "click":
             ref = state.find_ref(inp["element_name"], inp.get("role"))
             if ref is None:
