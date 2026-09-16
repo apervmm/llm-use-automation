@@ -42,13 +42,15 @@ def replay(
             if decision == OperatorDecision.RESUME:
                 confirmed = True 
 
-        return ReplayResult(
-            status=ReplayStatus.FAILURE,
-            capability_id=capability.capability_id,
-            error=(
-                f"'{capability.capability_id}' requires confirmed=True to replay."
-            ),
-        )
+        if not confirmed:
+            return ReplayResult(
+                status=ReplayStatus.FAILURE,
+                capability_id=capability.capability_id,
+                error=(
+                    f"'{capability.capability_id}' requires confirmed=True to replay."
+                ),
+            )
+        
     _validate_inputs(capability, inputs)
 
     nav_result = session.goto(capability.entry_url)
@@ -64,10 +66,15 @@ def replay(
         )
 
     read_values: dict[str, str] = {}
+    step_index = 0
+    steps = capability.steps
 
 
-    for step in capability.steps:
+    # for step in capability.steps:
+    while step_index < len(steps):
+        step = steps[step_index]
         value = _substitute(step.value, inputs) if step.value else None
+        result = _execute_step(session, step, value)
 
         if step.action == StepAction.NAVIGATE:
             result = session.goto(value)
@@ -198,3 +205,22 @@ def _wait_for_checkpoint(
         session.page.wait_for_timeout(interval_ms)
         elapsed += interval_ms
     return _checkpoint_met(session, checkpoint)
+
+
+
+def _execute_step(session: BrowserSession, step, value: str | None):
+    """
+        Dispatches one step to the browser
+        Returns an ActionResult, or None if there was nothing to execute 
+    """
+    if step.action == StepAction.NAVIGATE:
+        return session.goto(value)
+    if step.action == StepAction.CLICK:
+        return session.click(step.target, description=step.description)
+    if step.action == StepAction.TYPE_TEXT:
+        return session.type_text(step.target, value, description=step.description)
+    if step.action == StepAction.READ:
+        if step.target is None:
+            return None
+        return session.read_text(step.target, description=step.description)
+    return None
