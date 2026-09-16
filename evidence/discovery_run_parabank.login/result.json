@@ -1,0 +1,109 @@
+{
+  "run_type": "discovery",
+  "timestamp": "20260914T093848Z",
+  "goal": "Log in with username 'john' and password 'demo'. When calling done, include exactly these output keys: 'login_succeeded' (string 'true' or 'false') and 'message' (a short description).",
+  "success": true,
+  "stop_reason": "goal_met",
+  "outputs": {
+    "login_succeeded": "true",
+    "message": "Login successful - logged in as John Smith with account overview displayed"
+  },
+  "transcript": [
+    {
+      "step_num": 1,
+      "page_url": "https://parabank.parasoft.com/parabank/index.htm",
+      "tool_name": "type_text",
+      "tool_input": {
+        "element_name": "Username",
+        "text": "john"
+      },
+      "success": true,
+      "detail": "type_text succeeded. New page: Current URL: https://parabank.parasoft.com/parabank/index.htm\nPage title: ParaBank | Welcome | Online Banking\n\nInteractive elements:\n- [link] 'Solutions'\n- [link] 'Products'\n- [link] 'Locations'\n- [link] 'Admin Page'\n- [link] 'home'\n- [link] 'about'\n- [link] 'contact'\n- [textbox] 'john'\n- [textbox] 'Password'\n- [button] 'Log In'\n- [link] 'Customer Login'\n- [link] 'ATM Services'\n- [link] 'Check Balances'\n- [link] 'Make Deposits'\n- [link] 'Online Services'\n- [link] 'Transfer Funds'\n- [link] 'READ MORE'\n- [link] '09/14/2026'\n- [link] 'LATEST NEWS'\n- [link] 'Home'\n- [link] 'About Us'\n- [link] 'Services'\n- [link] 'Forum'\n- [link] 'Site Map'\n- [link] 'Contact Us'\n- [link] 'Visit us at:'\n\nVisible text (truncated): Experience the difference\n\nSolutions\nAbout Us\nServices\nProducts\nLocations\nAdmin Page\nhome\nabout\ncontact\nCustomer Login\n\nUsername\n\nPassword\n\nForgot login info?\n\nRegister\n\n\u00a0\nATM Services\nWithdraw Funds\nTransfer Funds\nCheck Balances\nMake Deposits\nOnline Services\nBill Pay\nAccount History\nTransfer Funds\n\nREAD MORE\n\nLATEST NEWS\n09/14/2026\nParaBank Is Now Re-Opened\nNew! Online Bill Pay\nNew! Online Account Transfers\n\nREAD MORE\n\nHome|\nAbout Us|\nServices|\nProducts|\nLocations|\nForum|\nSite Map|\nContact Us\n\n",
+      "screenshot_path": "evidence/discovery_run_parabank.login/step_1.png",
+      "resolved_ref": {
+        "strategy": "css",
+        "value": "input[name=\"username\"]",
+        "role": "textbox",
+        "fallbacks": [
+          {
+            "strategy": "role_name",
+            "value": "Username",
+            "role": "textbox",
+            "fallbacks": []
+          }
+        ]
+      }
+    },
+    {
+      "step_num": 2,
+      "page_url": "https://parabank.parasoft.com/parabank/index.htm",
+      "tool_name": "type_text",
+      "tool_input": {
+        "element_name": "Password",
+        "text": "[REDACTED]"
+      },
+      "success": true,
+      "detail": "type_text succeeded. New page: Current URL: https://parabank.parasoft.com/parabank/index.htm\nPage title: ParaBank | Welcome | Online Banking\n\nInteractive elements:\n- [link] 'Solutions'\n- [link] 'Products'\n- [link] 'Locations'\n- [link] 'Admin Page'\n- [link] 'home'\n- [link] 'about'\n- [link] 'contact'\n- [textbox] 'john'\n- [textbox] 'demo'\n- [button] 'Log In'\n- [link] 'Customer Login'\n- [link] 'ATM Services'\n- [link] 'Check Balances'\n- [link] 'Make Deposits'\n- [link] 'Online Services'\n- [link] 'Transfer Funds'\n- [link] 'READ MORE'\n- [link] '09/14/2026'\n- [link] 'LATEST NEWS'\n- [link] 'Home'\n- [link] 'About Us'\n- [link] 'Services'\n- [link] 'Forum'\n- [link] 'Site Map'\n- [link] 'Contact Us'\n- [link] 'Visit us at:'\n\nVisible text (truncated): Experience the difference\n\nSolutions\nAbout Us\nServices\nProducts\nLocations\nAdmin Page\nhome\nabout\ncontact\nCustomer Login\n\nUsername\n\nPassword\n\nForgot login info?\n\nRegister\n\n\u00a0\nATM Services\nWithdraw Funds\nTransfer Funds\nCheck Balances\nMake Deposits\nOnline Services\nBill Pay\nAccount History\nTransfer Funds\n\nREAD MORE\n\nLATEST NEWS\n09/14/2026\nParaBank Is Now Re-Opened\nNew! Online Bill Pay\nNew! Online Account Transfers\n\nREAD MORE\n\nHome|\nAbout Us|\nServices|\nProducts|\nLocations|\nForum|\nSite Map|\nContact Us\n\n",
+      "screenshot_path": "evidence/discovery_run_parabank.login/step_2.png",
+      "resolved_ref": {
+        "strategy": "css",
+        "value": "input[name=\"password\"]",
+        "role": "textbox",
+        "fallbacks": [
+          {
+            "strategy": "role_name",
+            "value": "Password",
+            "role": "textbox",
+            "fallbacks": []
+          }
+        ]
+      }
+    },
+    {
+      "step_num": 3,
+      "page_url": "https://parabank.parasoft.com/parabank/overview.htm",
+      "tool_name": "click",
+      "tool_input": {
+        "element_name": "Log In",
+        "role": "button"
+      },
+      "success": true,
+      "detail": "click succeeded. New page: Current URL: https://parabank.parasoft.com/parabank/overview.htm\nPage title: ParaBank | Accounts Overview\n\nInteractive elements:\n\n\nVisible text (truncated): Experience the difference\n\nSolutions\nAbout Us\nServices\nProducts\nLocations\nAdmin Page\nhome\nabout\ncontact\n\nWelcome John Smith\n\nAccount Services\nOpen New Account\nAccounts Overview\nTransfer Funds\nBill Pay\nFind Transactions\nUpdate Contact Info\nRequest Loan\nLog Out\nAccounts Overview\nAccount\tBalance*\tAvailable Amount\n13344\t$5022.93\t$5022.93\nTotal\t$5022.93\t\u00a0\n*Balance includes deposits that may be subject to holds\nHome|\nAbout Us|\nServices|\nProducts|\nLocations|\nForum|\nSite Map|\nContact Us\n\n\u00a9 Parasoft. All",
+      "screenshot_path": "evidence/discovery_run_parabank.login/step_3.png",
+      "resolved_ref": {
+        "strategy": "css",
+        "value": "div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > div > form > div:nth-of-type(3) > input",
+        "role": "button",
+        "fallbacks": [
+          {
+            "strategy": "role_name",
+            "value": "Log In",
+            "role": "button",
+            "fallbacks": []
+          },
+          {
+            "strategy": "text",
+            "value": "Log In",
+            "role": null,
+            "fallbacks": []
+          }
+        ]
+      }
+    },
+    {
+      "step_num": 4,
+      "page_url": "https://parabank.parasoft.com/parabank/overview.htm",
+      "tool_name": "done",
+      "tool_input": {
+        "outputs": {
+          "login_succeeded": "true",
+          "message": "Login successful - logged in as John Smith with account overview displayed"
+        }
+      },
+      "success": true,
+      "detail": "goal completed",
+      "screenshot_path": null,
+      "resolved_ref": null
+    }
+  ]
+}

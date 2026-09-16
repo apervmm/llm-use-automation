@@ -1,0 +1,16 @@
+{
+  "run_type": "replay",
+  "timestamp": "20260914T094919Z",
+  "inputs": {
+    "username": "wrong",
+    "password": "[REDACTED]"
+  },
+  "status": "failure",
+  "capability_id": "parabank.login",
+  "outputs": {},
+  "outcome_name": null,
+  "failed_step": 3,
+  "expected": "url_contains=/overview.htm",
+  "observed": "https://parabank.parasoft.com/parabank/login.htm;jsessionid=F4C626F08D6F923DC98AB95CE5591D04",
+  "error": "Checkpoint not met and no matching business outcome found."
+}

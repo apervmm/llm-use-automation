@@ -4,7 +4,7 @@
   "current_step": 1,
   "current_url": "https://parabank.parasoft.com/parabank/nonexistent.htm",
   "detail": "Step 1 (StepAction.TYPE_TEXT) failed: No locator strategy matched. Attempts: css='input[name=\"username\"]': TimeoutError: Locator.wait_for: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"input[name=\\\"username\\\"]\").first to be visible\n | role_name='Username': TimeoutError: Locator.wait_for: Timeout 3000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"textbox\", name=\"Username\").first to be visible\n",
-  "screenshot_path": "evidence/escalations/escalation_ce04784795fe464c887d73c7cedbcbbe.png",
-  "timestamp": "2026-09-14T02:03:32.401871+00:00",
+  "screenshot_path": "evidence/escalations/escalation_6e7de9cbbe6e475e8e97c4f770b56f3c.png",
+  "timestamp": "2026-09-14T09:49:42.033505+00:00",
   "human_actions": []
 }
