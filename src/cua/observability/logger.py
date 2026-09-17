@@ -40,6 +40,7 @@ def log_discovery(result: AgentRunResult, evidence_dir: str, sensitive_values: l
         "goal": result.goal,
         "success": result.success,
         "stop_reason": result.stop_reason,
+        "escalations": result.escalations, 
         "outputs": result.outputs,
         "transcript": [_to_jsonable(step) for step in result.transcript],
     }

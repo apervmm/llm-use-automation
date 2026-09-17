@@ -15,7 +15,7 @@ class PolicyViolation(Exception):
 class Allowlist:
     def __init__(self, config_path: Path = _CONFIG_PATH):
         path = config_path or _CONFIG_PATH
-        config = yaml.safe_load(config_path.read_text())
+        config = yaml.safe_load(path.read_text())
         self.allowed_domains = config.get("allowed_domains", [])
         self.allowed_routes = config.get("allowed_routes", [])
         self.allowed_actions = set(config.get("allowed_actions", []))

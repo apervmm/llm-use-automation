@@ -1,0 +1,10 @@
+{
+  "reason": "risky_confirmation",
+  "capability_or_goal": "parabank.login",
+  "current_step": null,
+  "current_url": "about:blank",
+  "detail": "Risky capability requires explicit confirmation before unattended replay.",
+  "screenshot_path": "evidence/escalations/escalation_8509c0be514f4c278122b6a4102e2240.png",
+  "timestamp": "2026-09-16T09:23:46.936121+00:00",
+  "human_actions": []
+}

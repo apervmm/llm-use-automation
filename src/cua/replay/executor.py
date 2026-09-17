@@ -38,14 +38,19 @@ def replay(
                     capability_id=capability.capability_id,
                     error="Replay aborted by operator during risky-confirmation escalation."
                 )
+            
+            if decision == OperatorDecision.RESUME:
+                confirmed = True 
 
-        return ReplayResult(
-            status=ReplayStatus.FAILURE,
-            capability_id=capability.capability_id,
-            error=(
-                f"'{capability.capability_id}' requires confirmed=True to replay."
-            ),
-        )
+        if not confirmed:
+            return ReplayResult(
+                status=ReplayStatus.FAILURE,
+                capability_id=capability.capability_id,
+                error=(
+                    f"'{capability.capability_id}' requires confirmed=True to replay."
+                ),
+            )
+        
     _validate_inputs(capability, inputs)
 
     nav_result = session.goto(capability.entry_url)
@@ -61,28 +66,28 @@ def replay(
         )
 
     read_values: dict[str, str] = {}
+    step_index = 0
+    steps = capability.steps
 
 
-    for step in capability.steps:
+    # for step in capability.steps:
+    while step_index < len(steps):
+        step = steps[step_index]
         value = _substitute(step.value, inputs) if step.value else None
+        result = _execute_step(session, step, value)
 
-        if step.action == StepAction.NAVIGATE:
-            result = session.goto(value)
-        elif step.action == StepAction.CLICK:
-            result = session.click(step.target, description=step.description)
-        elif step.action == StepAction.TYPE_TEXT:
-            result = session.type_text(step.target, value, description=step.description)
-        elif step.action == StepAction.READ:
-            if step.target is None:
-                continue 
-            result = session.read_text(step.target, description=step.description)
+        if step.action == StepAction.READ:
+            if result is not None:
+                step_index += 1
+                continue
             if result.success:
                 read_values[step.read_label] = result.value
-            continue 
-        else:
-            continue  # READ steps don't act on the browser
+                step_index += 1
+                continue
 
-        if not result.success:
+        if result is None or not result.success:
+            error_text = result.error if result else "no action executed"
+
             outcome = _check_outcomes(session, capability.outcome_rules)
             if outcome:
                 return ReplayResult(
@@ -96,20 +101,50 @@ def replay(
                     handoff_state, 
                     EscalationReason.REPLAY_FAILURE,
                     capability.capability_id,
-                    f"Step {step.step_num} ({step.action}) failed: {result.error}",
+                    f"Step {step.step_num} ({step.action.value}) failed: {error_text}",
                     current_step=step.step_num,
                 )
                 decision = on_escalation(req, handoff_state)
 
+
+                if decision == OperatorDecision.RESUME:
+                    retry_result = _execute_step(session, step, value)
+                    if retry_result is not None and retry_result.success:
+                        step_index += 1
+                        continue
+                    
+                    outcome = _check_outcomes(session, capability.outcome_rules)
+                    if outcome:
+                        return ReplayResult(
+                            status=ReplayStatus.BUSINESS_OUTCOME,
+                            capability_id=capability.capability_id,
+                            outcome_name=outcome,
+                        )
+                    
+
+                    retry_error = retry_result.error if retry_result else error_text
+
+                    return ReplayResult(
+                        status=ReplayStatus.FAILURE,
+                        capability_id=capability.capability_id,
+                        failed_step=step.step_num,
+                        expected=step.description,
+                        observed=retry_error,
+                        error=f"Step {step.step_num} ({step.action.value}) failed even after operator intervention: {retry_error}",
+                    )
             return ReplayResult(
                 status=ReplayStatus.FAILURE,
                 capability_id=capability.capability_id,
                 failed_step=step.step_num,
                 expected=step.description,
-                observed=result.error,
-                error=f"Step {step.step_num} ({step.action}) failed: {result.error}",
+                observed=error_text,
+                error=f"Step {step.step_num} ({step.action.value}) failed: {error_text}",
             )
-        
+
+        step_index += 1  
+
+
+
     if capability.checkpoint and not _wait_for_checkpoint(session, capability.checkpoint):
         outcome = _check_outcomes(session, capability.outcome_rules)
         if outcome:
@@ -118,6 +153,24 @@ def replay(
                 capability_id=capability.capability_id,
                 outcome_name=outcome,
             )
+        
+
+        if on_escalation:
+            req = raise_escalation(
+                session,
+                handoff_state,
+                EscalationReason.REPLAY_FAILURE,
+                capability.capability_id,
+                f"Checkpoint not met: {capability.checkpoint.kind}={capability.checkpoint.expected}",
+                current_step=capability.steps[-1].step_num if capability.steps else None,
+            )
+            decision = on_escalation(req, handoff_state)
+            if decision == OperatorDecision.RESUME and _wait_for_checkpoint(session, capability.checkpoint):
+                outputs = _extract_outputs(capability, read_values)
+                return ReplayResult(status=ReplayStatus.SUCCESS, capability_id=capability.capability_id, outputs=outputs)
+
+
+
         return ReplayResult(
             status=ReplayStatus.FAILURE,
             capability_id=capability.capability_id,
@@ -126,6 +179,7 @@ def replay(
             observed=session.page.url,
             error="Checkpoint not met and no matching business outcome found.",
         )
+    
 
     outputs = _extract_outputs(capability, read_values)
     return ReplayResult(status=ReplayStatus.SUCCESS, capability_id=capability.capability_id, outputs=outputs)
@@ -195,3 +249,22 @@ def _wait_for_checkpoint(
         session.page.wait_for_timeout(interval_ms)
         elapsed += interval_ms
     return _checkpoint_met(session, checkpoint)
+
+
+
+def _execute_step(session: BrowserSession, step, value: str | None):
+    """
+        Dispatches one step to the browser
+        Returns an ActionResult, or None if there was nothing to execute 
+    """
+    if step.action == StepAction.NAVIGATE:
+        return session.goto(value)
+    if step.action == StepAction.CLICK:
+        return session.click(step.target, description=step.description)
+    if step.action == StepAction.TYPE_TEXT:
+        return session.type_text(step.target, value, description=step.description)
+    if step.action == StepAction.READ:
+        if step.target is None:
+            return None
+        return session.read_text(step.target, description=step.description)
+    return None
