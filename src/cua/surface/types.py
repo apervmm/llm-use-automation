@@ -38,16 +38,31 @@ class PageState:
 
     def find_ref(self, name: str, role: str | None = None) -> Optional["ElementRef"]:
         name_lower = name.strip().lower()
+
+        def role_ok(el: "InteractiveElement") -> bool:
+            return role is None or el.role == role or el.element_type == role
+
         for el in self.interactive_elements:
-            if el.accessible_name.strip().lower() == name_lower:
-                if role is None or el.role == role or el.element_type == role:
-                    return el.ref
-                
-        for el in self.interactive_elements:
-            if name_lower in el.accessible_name.strip().lower():
+            if el.accessible_name.strip().lower() == name_lower and role_ok(el):
                 return el.ref
-            
+
+        for el in self.interactive_elements:
+            if name_lower in el.accessible_name.strip().lower() and role_ok(el):
+                return el.ref
+
         return None
+    
+        # name_lower = name.strip().lower()
+        # for el in self.interactive_elements:
+        #     if el.accessible_name.strip().lower() == name_lower:
+        #         if role is None or el.role == role or el.element_type == role:
+        #             return el.ref
+                
+        # for el in self.interactive_elements:
+        #     if name_lower in el.accessible_name.strip().lower():
+        #         return el.ref
+            
+        # return None
 
 
 @dataclass

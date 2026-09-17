@@ -101,7 +101,7 @@ def replay(
                     handoff_state, 
                     EscalationReason.REPLAY_FAILURE,
                     capability.capability_id,
-                    f"Step {step.step_num} ({step.action}) failed: {error_text}",
+                    f"Step {step.step_num} ({step.action.value}) failed: {error_text}",
                     current_step=step.step_num,
                 )
                 decision = on_escalation(req, handoff_state)
@@ -130,7 +130,7 @@ def replay(
                         failed_step=step.step_num,
                         expected=step.description,
                         observed=retry_error,
-                        error=f"Step {step.step_num} ({step.action}) failed even after operator intervention: {retry_error}",
+                        error=f"Step {step.step_num} ({step.action.value}) failed even after operator intervention: {retry_error}",
                     )
             return ReplayResult(
                 status=ReplayStatus.FAILURE,
@@ -138,7 +138,7 @@ def replay(
                 failed_step=step.step_num,
                 expected=step.description,
                 observed=error_text,
-                error=f"Step {step.step_num} ({step.action}) failed: {error_text}",
+                error=f"Step {step.step_num} ({step.action.value}) failed: {error_text}",
             )
 
         step_index += 1  
