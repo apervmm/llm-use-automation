@@ -88,9 +88,23 @@ class BrowserSession:
         start = time.time()
         try:
             self._resolve(ref).click(timeout=5000)
+            self.allowlist._check_url(self.page.url)
             return ActionResult(True, "click", description or ref.value, duration_ms=int((time.time() - start) * 1000))
         except Exception as e:
             return ActionResult(False, "click", description or ref.value, error=str(e))
+        
+    def select_option(self, ref: ElementRef, value: str, description: str = "") -> ActionResult:
+        try:
+            self.allowlist.check_action("select_option", url=self.page.url)
+        except PolicyViolation as e:
+            return ActionResult(False, "select_option", description or ref.value, error=str(e))
+
+        start = time.time()
+        try:
+            self._resolve(ref).select_option(value=value, timeout=5000)
+            return ActionResult(True, "select_option", description or ref.value, duration_ms=int((time.time() - start) * 1000), value=value)
+        except Exception as e:
+            return ActionResult(False, "select_option", description or ref.value, error=str(e))
 
 
     def type_text(self, ref: ElementRef, text: str, description: str = "") -> ActionResult:

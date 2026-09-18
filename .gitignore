@@ -18,7 +18,8 @@ README.md
 /scripts/escalation_v2.py
 /scripts/discovery_escalation.py
 /scripts/evidence_discovery_stuck.py
-scripts/evidence_risky_confirmation.py
+/scripts/evidence_risky_confirmation.py
+/scripts/versioning.py
 /tests/*
 /evidence/
 

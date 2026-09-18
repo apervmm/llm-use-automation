@@ -32,6 +32,7 @@ class StepAction(str, Enum):
     TYPE_TEXT = "type_text"
     NAVIGATE = "navigate"
     READ = "read"
+    SELECT_OPTION = "select_option"
 
 
 class Step(BaseModel):

@@ -58,6 +58,11 @@ def raise_escalation(
     evidence_dir: str = "evidence/escalations",
 ) -> EscalationRequest:
     
+    try:
+        session.page.bring_to_front()
+    except Exception:
+        pass
+    
     screenshot_path = None
 
     try:

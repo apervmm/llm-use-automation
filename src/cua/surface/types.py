@@ -25,6 +25,7 @@ class InteractiveElement:
     accessible_name: str
     element_type: Literal["button", "link", "textbox", "select", "checkbox", "other"]
     is_visible: bool = True
+    options: list[str] = field(default_factory=list) 
 
 
 @dataclass

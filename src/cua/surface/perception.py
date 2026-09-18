@@ -47,6 +47,7 @@ def snapshot(session: BrowserSession, screenshot_path: str | None = None) -> Pag
             role=role,
             accessible_name=name,
             element_type=_ROLE_TO_ELEMENT_TYPE.get(role, "other"),
+            options=item.get("options", []),
         ))
 
     shot_path = session.screenshot(screenshot_path) if screenshot_path else None

@@ -62,6 +62,7 @@ class AgentLoop:
         self.max_escalations = max_escalations
         Path(evidence_dir).mkdir(parents=True, exist_ok=True)
 
+
     def run(self, goal: str, start_url: str) -> AgentRunResult:
         self.session.goto(start_url)
         transcript: list[TranscriptStep] = []
@@ -203,6 +204,11 @@ class AgentLoop:
         elif name == "navigate":
             ref = None
             result = self.session.goto(inp["url"])
+        elif name == "select_option":
+            ref = state.find_ref(inp["element_name"], "combobox")
+            if ref is None:
+                return f"ERROR: no dropdown named '{inp['element_name']}' found on this page.", state, None
+            result = self.session.select_option(ref, inp["option_value"], description=inp["element_name"])
         elif name == "read":
             ref = None
             element_name = inp.get("element_name")
@@ -212,6 +218,9 @@ class AgentLoop:
         else:
             return f"ERROR: unknown tool '{name}'.", state, None
 
+
+        self.session.page.wait_for_timeout(500)
+        
         new_state = snapshot(self.session, screenshot_path=f"{self.evidence_dir}/step_{step_num}.png")
         if not result.success:
             return f"ERROR: {name} failed — {result.error}", new_state, ref
@@ -219,9 +228,14 @@ class AgentLoop:
 
 
     def _observation_text(self, goal: str | None, state: PageState, include_goal: bool = True) -> str:
-        elements = "\n".join(
-            f"- [{el.role}] '{el.accessible_name}'" for el in state.interactive_elements
-        )
+        lines = []
+        for el in state.interactive_elements:
+            line = f"- [{el.role}] '{el.accessible_name}'"
+            if el.options:
+                line += f" (options: {', '.join(el.options)})"
+            lines.append(line)
+        elements = "\n".join(lines)
+
         parts = []
         if include_goal and goal:
             parts.append(f"GOAL: {goal}\n")

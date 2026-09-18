@@ -82,7 +82,16 @@ def _build_steps(transcript: list[TranscriptStep], param_map: dict[str, str]) ->
                 value=value,
                 description=f"Type into '{t.tool_input.get('element_name')}'",
             ))
-
+        elif t.tool_name == "select_option":
+            literal = t.tool_input.get("option_value", "")
+            value = _parameterize(literal, param_map)
+            steps.append(Step(
+                step_num=step_num,
+                action=StepAction.SELECT_OPTION,
+                target=t.resolved_ref,
+                value=value,
+                description=f"Select '{t.tool_input.get('option_value')}' in '{t.tool_input.get('element_name')}'",
+            ))
         elif t.tool_name == "navigate":
             steps.append(Step(
                 step_num=step_num,

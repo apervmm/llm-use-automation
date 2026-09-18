@@ -48,6 +48,18 @@ TOOLS = [
         },
     },
     {
+        "name": "select_option",
+        "description": "Select an option from a dropdown (<select>) on the current page, identified by its visible accessible name. option_value must be one of that dropdown's listed option values.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "element_name": {"type": "string"},
+                "option_value": {"type": "string"},
+            },
+            "required": ["element_name", "option_value"],
+        },
+    },
+    {
         "name": "read",
         "description": "Record a piece of data observed on the page (e.g. an account balance). Does not act on the browser.",
         "input_schema": {

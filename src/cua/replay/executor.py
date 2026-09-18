@@ -22,12 +22,13 @@ def replay(
 
     if capability.risk_level == RiskLevel.RISKY and not confirmed:
         if on_escalation:
+            params_summary = ", ".join(f"{k}={v}" for k, v in inputs.items())
             req = raise_escalation(
                 session, 
                 handoff_state, 
                 EscalationReason.RISKY_CONFIRMATION,
                 capability.capability_id,
-                "Risky capability requires explicit confirmation before unattended replay.",
+                f"Risky capability requires explicit confirmation before unattended replay. This will execute a NEW, real invocation with: {params_summary}",
             )
 
             decision = on_escalation(req, handoff_state)
@@ -77,13 +78,10 @@ def replay(
         result = _execute_step(session, step, value)
 
         if step.action == StepAction.READ:
-            if result is not None:
-                step_index += 1
-                continue
-            if result.success:
+            if result is not None and result.success:
                 read_values[step.read_label] = result.value
-                step_index += 1
-                continue
+            step_index += 1
+            continue
 
         if result is None or not result.success:
             error_text = result.error if result else "no action executed"
@@ -263,6 +261,8 @@ def _execute_step(session: BrowserSession, step, value: str | None):
         return session.click(step.target, description=step.description)
     if step.action == StepAction.TYPE_TEXT:
         return session.type_text(step.target, value, description=step.description)
+    if step.action == StepAction.SELECT_OPTION:
+        return session.select_option(step.target, value, description=step.description)
     if step.action == StepAction.READ:
         if step.target is None:
             return None

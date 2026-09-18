@@ -1,12 +1,17 @@
 allowed_domains:
   - parabank.parasoft.com
 allowed_routes:
-  - "/parabank/*"
+  - "/parabank/index.htm"
+  - "/parabank/login.htm*"
+  - "/parabank/register.htm*"
+  - "/parabank/overview.htm"
+  - "/parabank/requestloan.htm"
 allowed_actions:
   - click
   - type_text
   - navigate
   - read
+  - select_option
 blocked_actions: [] 
 
 risky_capability_patterns:
