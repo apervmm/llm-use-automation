@@ -17,5 +17,9 @@ README.md
 /scripts/artifact_schema.py
 /scripts/escalation_v2.py
 /scripts/discovery_escalation.py
+/scripts/evidence_discovery_stuck.py
+scripts/evidence_risky_confirmation.py
 /tests/*
+/evidence/
+
 

@@ -24,12 +24,28 @@ def _safe_path(filename: str) -> Path:
     return candidate
 
 
+def _existing_versions(capability_id: str) -> list[int]:
+    ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+    versions = []
+    for p in ARTIFACT_DIR.glob(f"{capability_id}.v*.json"):
+        match = re.search(r"\.v(\d+)\.json$", p.name)
+        if match:
+            versions.append(int(match.group(1)))
+    return versions
+
+
 def save(capability: Capability) -> Path:
     _validate_id(capability.capability_id)
+
+    existing = _existing_versions(capability.capability_id)
+    if existing and capability.version <= max(existing):
+        capability.version = max(existing) + 1
+        
     filename = f"{capability.capability_id}.v{capability.version}.json"
     path = _safe_path(filename)
     path.write_text(capability.model_dump_json(indent=2))
     return path
+
 
 
 def load(capability_id: str, version: int | None = None) -> Capability:

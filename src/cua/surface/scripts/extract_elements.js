@@ -6,12 +6,18 @@
         !['BR', 'SPAN', 'B', 'I', 'EM', 'STRONG'].includes(child.tagName)
       );
     };
-  
+    
+
+    const isLeafOrSelect = (el) => el.tagName === 'SELECT' || !hasStructuralChildren(el);
+
+
     const safeText = (node) => {
       if (!node || hasStructuralChildren(node)) return '';
       return node.innerText?.trim() || '';
     };
   
+
+
     const nearbyText = (el) => {
       let node = el.previousElementSibling;
       for (let i = 0; i < 2 && node; i++, node = node.previousElementSibling) {
@@ -80,7 +86,13 @@
   
     return Array.from(document.querySelectorAll('a, button, input, select'))
         .filter(isVisible)
-        .filter(el => !hasStructuralChildren(el))
-        .map(el => ({ role: roleOf(el), name: (nameOf(el) || '').trim(), cssSelector: cssSelectorFor(el) }))
+        // .filter(el => !hasStructuralChildren(el))
+        .filter(isLeafOrSelect)
+        .map(el => ({ 
+            role: roleOf(el), 
+            name: (nameOf(el) || '').trim(), 
+            cssSelector: cssSelectorFor(el),
+            options: el.tagName === 'SELECT' ? Array.from(el.options).map(o => o.value) : [],
+        }))
         .filter(item => item.name);
   })();

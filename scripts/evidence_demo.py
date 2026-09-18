@@ -27,7 +27,7 @@ TEST_PASSWORD_SUCCESS = os.environ.get("PARABANK_PASSWORD_SUCCESS", "test_passwo
 ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
-# 1. /discovery_run = llm driven
+# /discovery_run = llm driven
 with BrowserSession(headless=False) as session:
     discovery_dir = f"evidence/discovery_run_{ts}"
     # session = BrowserSession(headless=False)
