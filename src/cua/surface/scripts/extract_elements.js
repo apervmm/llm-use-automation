@@ -43,6 +43,7 @@
     const nameOf = (el) => {
       return el.getAttribute('aria-label')
           || (el.id && document.querySelector(`label[for="${el.id}"]`)?.innerText.trim())
+          || (el.tagName === 'SELECT' && nearbyText(el))
           || el.placeholder
           || el.value
           || nearbyText(el)

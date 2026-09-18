@@ -23,12 +23,13 @@ def replay(
     if capability.risk_level == RiskLevel.RISKY and not confirmed:
         if on_escalation:
             params_summary = ", ".join(f"{k}={v}" for k, v in inputs.items())
+            context = _try_extract_account_context(session, inputs)
             req = raise_escalation(
                 session, 
                 handoff_state, 
                 EscalationReason.RISKY_CONFIRMATION,
                 capability.capability_id,
-                f"Risky capability requires explicit confirmation before unattended replay. This will execute a NEW, real invocation with: {params_summary}",
+                f"This will submit a NEW loan application with: {params_summary}.{context}",
             )
 
             decision = on_escalation(req, handoff_state)
@@ -77,11 +78,20 @@ def replay(
         value = _substitute(step.value, inputs) if step.value else None
         result = _execute_step(session, step, value)
 
+        # if step.action == StepAction.READ:
+        #     if result is not None and result.success:
+        #         read_values[step.read_label] = result.value
+        #     step_index += 1
+        #     continue
+
         if step.action == StepAction.READ:
+            if step.target is None:
+                step_index += 1
+                continue
             if result is not None and result.success:
                 read_values[step.read_label] = result.value
-            step_index += 1
-            continue
+                step_index += 1
+                continue
 
         if result is None or not result.success:
             error_text = result.error if result else "no action executed"
@@ -268,3 +278,22 @@ def _execute_step(session: BrowserSession, step, value: str | None):
             return None
         return session.read_text(step.target, description=step.description)
     return None
+
+
+def _try_extract_account_context(session: BrowserSession, inputs: dict) -> str:
+    """Best-effort: if the current page already shows account balances (e.g.
+    we just came from Accounts Overview) and the inputs reference an
+    account, surface that account's real current state — not just the
+    numbers being submitted, which alone say nothing about whether they're
+    reasonable."""
+    account_id = inputs.get("from_account_id")
+    if not account_id:
+        return ""
+    try:
+        text = session.page.inner_text("body")
+        for line in text.splitlines():
+            if account_id in line:
+                return f" Current state of account {account_id} shown on this page: \"{line.strip()}\""
+    except Exception:
+        pass
+    return ""

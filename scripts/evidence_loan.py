@@ -47,7 +47,7 @@ def find_chosen_account(transcript: list[TranscriptStep]) -> str:
 
 
 # DISCOVERY: log in, then apply for a loan, on one shared session
-print(f"\n\n=== DISCOVERY: log in with {USERNAME}/{PASSWORD}, then apply for a loan of ")
+print(f"\n\n=== DISCOVERY: login then apply for a loan of ")
 login_discovery_dir = f"evidence/discovery_login_for_loan_{ts}"
 loan_discovery_dir = f"evidence/discovery_request_loan_{ts}"
 
