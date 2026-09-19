@@ -1,7 +1,7 @@
 {
   "capability_id": "parabank.login",
   "version": 1,
-  "description": "Log into ParaBank with a username and password.",
+  "description": "Recorded from goal: Log in with username 'john' and password 'demo'. When calling done, include output keys 'login_succeeded' and 'message'.\n",
   "target_app": "parabank",
   "entry_url": "https://parabank.parasoft.com/parabank/index.htm",
   "inputs": [
@@ -106,14 +106,14 @@
     "kind": "url_contains",
     "expected": "/overview.htm"
   },
-  "created_at": "2026-09-14T09:50:43.924609+00:00",
+  "created_at": "2026-09-19T09:11:27.721229+00:00",
   "source": "llm_discovery",
   "outcome_rules": [
     {
       "name": "invalid_credentials",
       "kind": "text_visible",
       "expected": "could not be verified",
-      "description": "Wrong username/password"
+      "description": ""
     }
   ],
   "risk_level": "safe"

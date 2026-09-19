@@ -1,0 +1,34 @@
+# capabilities/request_loan.yaml
+capability_id: parabank.request_loan
+goal: >
+  Apply for a loan with amount '1000' and down payment '10'.
+  Select an account from the dropdown using select_option even if only
+  one option exists, click Apply Now, and wait for 'Loan Request Processed'
+  to appear. When calling done, include 'loan_status' and, if approved,
+  'new_account_id'.
+url: https://parabank.parasoft.com/parabank/requestloan.htm
+auth_capability_id: parabank.login
+auth_inputs:
+  username: john
+  password: demo
+params:
+  "1000": amount
+  "10": down_payment
+select_param: from_account_id
+outputs: [loan_status, new_account_id]
+checkpoint:
+  kind: text_visible
+  expected: "Congratulations, your loan has been approved."
+outcome_rules:
+  - name: insufficient_funds_for_down_payment
+    kind: text_visible
+    expected: "You do not have sufficient funds for the given down payment."
+  - name: insufficient_funds_and_down_payment
+    kind: text_visible
+    expected: "We cannot grant a loan in that amount with your available funds and down payment."
+  - name: insufficient_funds
+    kind: text_visible
+    expected: "We cannot grant a loan in that amount with your available funds."
+  - name: insufficient_down_payment
+    kind: text_visible
+    expected: "We cannot grant a loan in that amount with the given down payment."
