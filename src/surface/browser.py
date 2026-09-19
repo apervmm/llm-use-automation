@@ -102,7 +102,10 @@ class BrowserSession:
         start = time.time()
         try:
             self._resolve(ref).select_option(value=value, timeout=5000)
+            self.allowlist._check_url(self.page.url)  
             return ActionResult(True, "select_option", description or ref.value, duration_ms=int((time.time() - start) * 1000), value=value)
+        except PolicyViolation as e:
+            return ActionResult(False, "select_option", description or ref.value, error=str(e))
         except Exception as e:
             return ActionResult(False, "select_option", description or ref.value, error=str(e))
 
