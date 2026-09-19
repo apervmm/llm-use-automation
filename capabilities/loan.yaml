@@ -5,7 +5,9 @@ goal: >
   Select an account from the dropdown using select_option even if only
   one option exists, click Apply Now, and wait for 'Loan Request Processed'
   to appear. When calling done, include 'loan_status' and, if approved,
-  'new_account_id'.
+  'new_account_id'. When you read 'new_account_id', always pass
+  element_name set to 'Your new account number:' in the read tool call,
+  so the value can be resolved to a stable element for later replay.
 url: https://parabank.parasoft.com/parabank/requestloan.htm
 auth_capability_id: parabank.login
 auth_inputs:
