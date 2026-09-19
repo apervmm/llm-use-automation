@@ -220,7 +220,7 @@ class AgentLoop:
         
 
         if not result.success:
-            return f"ERROR: {name} failed — {result.error}", new_state, ref
+            return f"ERROR: {name} failed — {result.error}", state, ref
 
         self.session.page.wait_for_timeout(500)
 
