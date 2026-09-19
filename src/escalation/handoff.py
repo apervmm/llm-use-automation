@@ -30,7 +30,7 @@ class EscalationRequest:
     screenshot_path: str | None = None
     timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     run_id: str | None = None 
-
+    evidence_dir: str = "evidence/escalations"
 
 class HandoffState:
     def __init__(self):
@@ -86,4 +86,5 @@ def raise_escalation(
         detail=detail,
         screenshot_path=screenshot_path,
         run_id=run_id, 
+        evidence_dir=evidence_dir,
     )
