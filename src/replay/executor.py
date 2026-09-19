@@ -4,6 +4,7 @@ from surface.perception import snapshot
 from artifact.schema import Capability, StepAction, Checkpoint, OutcomeRule, RiskLevel
 from escalation.handoff import raise_escalation, EscalationReason, HandoffState, OperatorDecision
 from .outcomes import ReplayResult, ReplayStatus
+from safety.redaction import redact_any
 
 
 def replay(
@@ -22,7 +23,8 @@ def replay(
 
     if capability.risk_level == RiskLevel.RISKY and not confirmed:
         if on_escalation:
-            params_summary = ", ".join(f"{k}={v}" for k, v in inputs.items())
+            safe_inputs = redact_any(dict(inputs))
+            params_summary = ", ".join(f"{k}={v}" for k, v in safe_inputs.items())
             context = _try_extract_account_context(session, inputs)
             req = raise_escalation(
                 session, 

@@ -86,6 +86,8 @@ def discover(config_path, max_steps):
 
     log_discovery(result, evidence_dir)
     click.echo(f"Discovery {'succeeded' if result.success else 'failed'} ({result.stop_reason})")
+
+
     if not result.success:
         raise SystemExit(1)
 
@@ -113,15 +115,30 @@ def discover(config_path, max_steps):
 
 
 @cli.command()
-@click.option("--config", "config_path", required=True, type=click.Path(exists=True),
-              help="Path to the same capability YAML file used for discovery.")
-@click.option("--inputs", default="", help="Comma-separated key=value, e.g. amount=1000,down_payment=10")
-@click.option("--version", "version_", type=int, default=None, help="Pin a specific saved version.")
-@click.option("--confirmed", is_flag=True, default=False, help="Skip the risky-confirmation prompt.")
+@click.option(
+    "--config", 
+    "config_path", 
+    required=True, 
+    type=click.Path(exists=True),
+    help="Path to the same capability YAML file used for discovery.")
+@click.option(
+    "--inputs", 
+    default="", 
+    help="Comma-separated key=value, e.g. amount=1000,down_payment=10")
+@click.option(
+    "--version", 
+    "version_", 
+    type=int, 
+    default=None, 
+    help="Pin a specific saved version.")
+@click.option(
+    "--confirmed", 
+    is_flag=True, 
+    default=False, 
+    help="Skip the risky-confirmation prompt.")
 def replay(config_path, inputs, version_, confirmed):
-    """Deterministically replay a saved capability — no LLM involved.
-
-    Running this repeatedly never creates new artifact versions.
+    """
+    Deterministic replay of a saved capability
     """
     config = yaml.safe_load(Path(config_path).read_text())
     capability_id = config["capability_id"]
@@ -140,6 +157,9 @@ def replay(config_path, inputs, version_, confirmed):
         "outcome_name": result.outcome_name,
         "error": result.error,
     }, indent=2))
+
+    if result.status == ReplayStatus.FAILURE:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
