@@ -25,13 +25,15 @@
       "name": "login_succeeded",
       "type": "string",
       "description": "",
-      "source_label": "login_succeeded"
+      "source_label": "login_succeeded",
+      "derived_from_outcome": false
     },
     {
       "name": "message",
       "type": "string",
       "description": "",
-      "source_label": "message"
+      "source_label": "message",
+      "derived_from_outcome": false
     }
   ],
   "steps": [
@@ -106,7 +108,7 @@
     "kind": "url_contains",
     "expected": "/overview.htm"
   },
-  "created_at": "2026-09-19T11:00:52.891868+00:00",
+  "created_at": "2026-09-19T12:35:20.530620+00:00",
   "source": "llm_discovery",
   "outcome_rules": [
     {

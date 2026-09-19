@@ -52,7 +52,8 @@ class AgentLoop:
             max_steps: int = 15, 
             evidence_dir: str = "evidence/discovery",
             on_escalation=None, 
-            max_escalations: int = 2
+            max_escalations: int = 2,
+            run_id=None
         ):
         self.session = session
         self.llm = llm
@@ -60,6 +61,7 @@ class AgentLoop:
         self.evidence_dir = evidence_dir
         self.on_escalation = on_escalation
         self.max_escalations = max_escalations
+        self.run_id = run_id
         Path(evidence_dir).mkdir(parents=True, exist_ok=True)
 
 
@@ -179,6 +181,8 @@ class AgentLoop:
             goal,
             detail,
             current_step=step_num,
+            evidence_dir=self.evidence_dir, 
+            run_id=self.run_id,
         )
         return self.on_escalation(req, handoff_state)
             

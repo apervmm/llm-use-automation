@@ -27,7 +27,12 @@ def _to_jsonable(obj):
     return obj
 
 
-def log_discovery(result: AgentRunResult, evidence_dir: str, sensitive_values: list[str] | None = None) -> Path:
+def log_discovery(
+    result: AgentRunResult, 
+    evidence_dir: str, 
+    sensitive_values: list[str] | None = None, 
+    run_id: str | None = None
+) -> Path:
     """
         Writes a structured summary of a discovery run alongside the screenshots AgentLoop already saved into evidence_dir
     """
@@ -36,6 +41,7 @@ def log_discovery(result: AgentRunResult, evidence_dir: str, sensitive_values: l
 
     summary = {
         "run_type": "discovery",
+        "run_id": run_id,
         "timestamp": _timestamp(),
         "goal": result.goal,
         "success": result.success,
@@ -52,7 +58,12 @@ def log_discovery(result: AgentRunResult, evidence_dir: str, sensitive_values: l
     return path
 
 
-def log_replay(result: ReplayResult, evidence_dir: str, inputs: dict) -> Path:
+def log_replay(
+    result: ReplayResult, 
+    evidence_dir: str, 
+    inputs: dict,
+    run_id: str | None = None
+) -> Path:
     """
         Writes a structured summary of a single replay invocation
     """
@@ -61,6 +72,7 @@ def log_replay(result: ReplayResult, evidence_dir: str, inputs: dict) -> Path:
 
     summary = {
         "run_type": "replay",
+        "run_id": run_id,
         "timestamp": _timestamp(),
         "inputs": {k: ("[REDACTED]" if "password" in k.lower() else v) for k, v in inputs.items()},
         "status": result.status.value,

@@ -14,6 +14,7 @@ def record(
     checkpoint: Checkpoint,
     description: str = "",
     allowlist: Allowlist | None = None,
+    outcome_derived_outputs: list[str] | None = None, 
 ) -> Capability:
     if not run_result.success:
         raise ValueError("Cannot record a capability from a failed run.")
@@ -29,8 +30,14 @@ def record(
         for literal, name in param_map.items()
     ]
 
+    outcome_derived_outputs = outcome_derived_outputs or []
+
     outputs = [
-        OutputField(name=key, source_label=key)
+        OutputField(
+            name=key,
+            source_label=key,
+            derived_from_outcome=(key in outcome_derived_outputs),
+        )
         for key in output_keys
         if key in run_result.outputs
     ]

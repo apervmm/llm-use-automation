@@ -18,6 +18,7 @@ params:
   "10": down_payment
 select_param: from_account_id
 outputs: [loan_status, new_account_id]
+outcome_derived_outputs: [loan_status]
 checkpoint:
   kind: text_visible
   expected: "Congratulations, your loan has been approved."

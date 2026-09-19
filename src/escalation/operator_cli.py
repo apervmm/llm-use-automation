@@ -83,6 +83,7 @@ def to_operator(request: EscalationRequest, state: HandoffState, evidence_dir: s
     record_path = Path(evidence_dir) / f"escalation_{uuid.uuid4().hex}.json"
     record_path.write_text(json.dumps({
         "reason": request.reason.value,
+        "run_id": request.run_id,
         "capability_or_goal": request.capability_or_goal,
         "current_step": request.current_step,
         "current_url": request.current_url,

@@ -4,6 +4,8 @@ from pathlib import Path
 import click
 import yaml
 from dotenv import load_dotenv
+from datetime import datetime, timezone
+import uuid
 
 load_dotenv()
 
@@ -70,7 +72,10 @@ def discover(config_path, max_steps):
     """
     config = yaml.safe_load(Path(config_path).read_text())
     capability_id = config["capability_id"]
-    evidence_dir = f"evidence/discovery_{capability_id}"
+
+    run_id = uuid.uuid4().hex[:12]
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    evidence_dir = f"evidence/discovery_{capability_id}_{ts}_{run_id}"
 
     with BrowserSession(headless=False) as session:
         _authenticate_if_needed(session, config)
@@ -80,11 +85,12 @@ def discover(config_path, max_steps):
             LLMClient(), 
             max_steps=max_steps,
             evidence_dir=evidence_dir, 
-            on_escalation=to_operator
+            on_escalation=to_operator,
+            run_id=run_id
         )
         result = agent.run(goal=config["goal"], start_url=config["url"])
 
-    log_discovery(result, evidence_dir)
+    log_discovery(result, evidence_dir, run_id=run_id)
     click.echo(f"Discovery {'succeeded' if result.success else 'failed'} ({result.stop_reason})")
 
 
@@ -107,6 +113,7 @@ def discover(config_path, max_steps):
         output_keys=config.get("outputs", []),
         checkpoint=Checkpoint(**config["checkpoint"]),
         description=f"Recorded from goal: {config['goal']}",
+        outcome_derived_outputs=config.get("outcome_derived_outputs", []), 
     )
     capability.outcome_rules.extend(OutcomeRule(**r) for r in config.get("outcome_rules", []))
 
@@ -144,13 +151,26 @@ def replay(config_path, inputs, version_, confirmed):
     capability_id = config["capability_id"]
     capability = store.load(capability_id, version=version_)
     input_dict = _parse_pairs(inputs)
-    evidence_dir = f"evidence/replay_{capability_id}"
+    
+    run_id = uuid.uuid4().hex[:12]
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    evidence_dir = f"evidence/replay_{capability_id}_{ts}_{run_id}"
+
+    
 
     with BrowserSession(headless=False) as session:
         _authenticate_if_needed(session, config)
-        result = run_replay(session, capability, input_dict, confirmed=confirmed, on_escalation=to_operator)
+        result = run_replay(
+            session, 
+            capability, 
+            input_dict, 
+            confirmed=confirmed, 
+            on_escalation=to_operator,
+            run_id=run_id, 
+            evidence_dir=evidence_dir
+        )
 
-    log_replay(result, evidence_dir, input_dict)
+    log_replay(result, evidence_dir, input_dict, run_id=run_id)
     click.echo(f"Status: {result.status.value}")
     click.echo(json.dumps({
         "outputs": result.outputs,
