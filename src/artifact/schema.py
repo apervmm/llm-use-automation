@@ -24,7 +24,8 @@ class OutputField(BaseModel):
     name: str                         
     type: ParamType = ParamType.STRING
     description: str = ""
-    source_label: str = ""             
+    source_label: str = ""    
+    derived_from_outcome: bool = False         
 
 
 class StepAction(str, Enum):

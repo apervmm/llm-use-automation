@@ -13,6 +13,8 @@ def replay(
     inputs: dict, 
     confirmed: bool = False,
     on_escalation=None,
+    run_id: str | None = None,
+    evidence_dir: str = "evidence/escalations",
 ) -> ReplayResult:
     """
     Execute a saved Capability deterministically, using the provided inputs to fill in any parameterized values.
@@ -32,6 +34,8 @@ def replay(
                 EscalationReason.RISKY_CONFIRMATION,
                 capability.capability_id,
                 f"This will submit a NEW loan application with: {params_summary}.{context}",
+                evidence_dir=evidence_dir,
+                run_id=run_id,
             )
 
             decision = on_escalation(req, handoff_state)
@@ -104,6 +108,7 @@ def replay(
                     status=ReplayStatus.BUSINESS_OUTCOME,
                     capability_id=capability.capability_id,
                     outcome_name=outcome,
+                    outputs=_extract_outputs(capability, read_values, status=ReplayStatus.BUSINESS_OUTCOME, outcome_name=outcome),
                 )
             if on_escalation:
                 req = raise_escalation(
@@ -129,6 +134,7 @@ def replay(
                             status=ReplayStatus.BUSINESS_OUTCOME,
                             capability_id=capability.capability_id,
                             outcome_name=outcome,
+                            outputs=_extract_outputs(capability, read_values, status=ReplayStatus.BUSINESS_OUTCOME, outcome_name=outcome),
                         )
                     
 
@@ -162,6 +168,7 @@ def replay(
                 status=ReplayStatus.BUSINESS_OUTCOME,
                 capability_id=capability.capability_id,
                 outcome_name=outcome,
+                outputs=_extract_outputs(capability, read_values, status=ReplayStatus.BUSINESS_OUTCOME, outcome_name=outcome),
             )
         
 
@@ -176,7 +183,7 @@ def replay(
             )
             decision = on_escalation(req, handoff_state)
             if decision == OperatorDecision.RESUME and _wait_for_checkpoint(session, capability.checkpoint):
-                outputs = _extract_outputs(capability, read_values)
+                outputs = _extract_outputs(capability, read_values, status=ReplayStatus.SUCCESS)
                 return ReplayResult(status=ReplayStatus.SUCCESS, capability_id=capability.capability_id, outputs=outputs)
 
 
@@ -191,7 +198,7 @@ def replay(
         )
     
 
-    outputs = _extract_outputs(capability, read_values)
+    outputs = _extract_outputs(capability, read_values, status=ReplayStatus.SUCCESS)
     return ReplayResult(status=ReplayStatus.SUCCESS, capability_id=capability.capability_id, outputs=outputs)
 
 
@@ -232,10 +239,22 @@ def _check_outcomes(session: BrowserSession, rules: list[OutcomeRule]) -> str | 
     return None
 
 
-def _extract_outputs(capability: Capability, read_values: dict) -> dict:
+def _extract_outputs(
+    capability: Capability, 
+    read_values: dict,
+    status: ReplayStatus | None = None,
+    outcome_name: str | None = None
+) -> dict:
     outputs = {}
     for field in capability.outputs:
-        if field.source_label in read_values:
+        if field.derived_from_outcome:
+            if status == ReplayStatus.SUCCESS:
+                outputs[field.name] = "Approved"
+            elif status == ReplayStatus.BUSINESS_OUTCOME:
+                outputs[field.name] = "Denied"
+            else:
+                outputs[field.name] = None
+        elif field.source_label in read_values:
             outputs[field.name] = read_values[field.source_label]
         elif "succeed" in field.name.lower() or "success" in field.name.lower():
             outputs[field.name] = "true"

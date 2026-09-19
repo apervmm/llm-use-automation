@@ -69,10 +69,10 @@ TOOLS = [
                 "value": {"type": "string"},
                 "element_name": {
                         "type": "string", 
-                        "description": "Optional: the visible element this value was read from, if any"
+                        "description": "The visible element this value was read from — always try to provide this so the value can be re-located during replay."
                     },
             },
-            "required": ["label", "value"],
+            "required": ["label", "value", "element_name"],
         },
     },
     {
