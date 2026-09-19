@@ -106,7 +106,7 @@
     "kind": "url_contains",
     "expected": "/overview.htm"
   },
-  "created_at": "2026-09-19T09:11:27.721229+00:00",
+  "created_at": "2026-09-19T11:00:52.891868+00:00",
   "source": "llm_discovery",
   "outcome_rules": [
     {
