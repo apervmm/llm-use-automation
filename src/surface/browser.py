@@ -52,6 +52,20 @@ class BrowserSession:
         raise RuntimeError(f"No locator strategy matched. Attempts: {detail}")
 
 
+    def _diagnose_select_failure(self, ref: ElementRef, value: str) -> str:
+        try:
+            loc = self.page.locator(ref.value).first
+            option_count = loc.locator("option").count()
+            visible = loc.is_visible()
+            if not visible:
+                return "The dropdown isn't visible on the page right now."
+            if option_count == 0:
+                return "The dropdown is visible but has 0 options loaded — the page likely hadn't finished loading yet."
+            return f"The dropdown has {option_count} option(s) loaded, but '{value}' isn't one of them."
+        except Exception:
+            return "Couldn't locate the dropdown on the page to check its state."
+
+
     def _to_playwright_locator(self, ref: ElementRef):
         if ref.strategy == LocatorStrategy.ROLE_NAME:
             return self.page.get_by_role(ref.role, name=ref.value, exact=False).first
@@ -106,8 +120,8 @@ class BrowserSession:
             return ActionResult(True, "select_option", description or ref.value, duration_ms=int((time.time() - start) * 1000), value=value)
         except PolicyViolation as e:
             return ActionResult(False, "select_option", description or ref.value, error=str(e))
-        except Exception as e:
-            return ActionResult(False, "select_option", description or ref.value, error=str(e))
+        except Exception:
+            return ActionResult(False, "select_option", description or ref.value, error=self._diagnose_select_failure(ref, value))
 
 
     def type_text(self, ref: ElementRef, text: str, description: str = "") -> ActionResult:
