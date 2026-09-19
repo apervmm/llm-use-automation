@@ -39,7 +39,7 @@ def record(
             derived_from_outcome=(key in outcome_derived_outputs),
         )
         for key in output_keys
-        if key in run_result.outputs
+        if key in run_result.outputs or key in outcome_derived_outputs
     ]
 
     risk_level = RiskLevel.RISKY if allowlist.is_risky(capability_id) else RiskLevel.SAFE
