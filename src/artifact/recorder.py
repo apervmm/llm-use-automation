@@ -1,7 +1,7 @@
-from cua.agent.loop import AgentRunResult, TranscriptStep
+from agent.loop import AgentRunResult, TranscriptStep
 from .schema import Capability, Step, StepAction, InputParam, OutputField, Checkpoint, RiskLevel
-from cua.safety.allowlist import Allowlist
-from cua.safety.redaction import redact
+from safety.allowlist import Allowlist
+from safety.redaction import redact
 
 
 

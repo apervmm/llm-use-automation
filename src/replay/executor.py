@@ -1,8 +1,8 @@
 import re
-from cua.surface.browser import BrowserSession
-from cua.surface.perception import snapshot
-from cua.artifact.schema import Capability, StepAction, Checkpoint, OutcomeRule, RiskLevel
-from cua.escalation.handoff import raise_escalation, EscalationReason, HandoffState, OperatorDecision
+from surface.browser import BrowserSession
+from surface.perception import snapshot
+from artifact.schema import Capability, StepAction, Checkpoint, OutcomeRule, RiskLevel
+from escalation.handoff import raise_escalation, EscalationReason, HandoffState, OperatorDecision
 from .outcomes import ReplayResult, ReplayStatus
 
 

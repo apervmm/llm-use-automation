@@ -5,8 +5,8 @@ must remain byte-for-byte unchanged and still loadable by number.
 
 No browser/LLM calls — exercises store.save()/load() directly.
 """
-from cua.artifact import store
-from cua.artifact.schema import Capability, Checkpoint
+from artifact import store
+from artifact.schema import Capability, Checkpoint
 
 CAP_ID = "verify.versioning.demo"
 

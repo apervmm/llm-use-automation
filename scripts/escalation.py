@@ -1,7 +1,7 @@
-from cua.surface.browser import BrowserSession
-from cua.artifact import store
-from cua.replay.executor import replay
-from cua.escalation.operator_cli import to_operator
+from surface.browser import BrowserSession
+from artifact import store
+from replay.executor import replay
+from escalation.operator_cli import to_operator
 
 import os
 from dotenv import load_dotenv

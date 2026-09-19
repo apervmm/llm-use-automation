@@ -3,9 +3,9 @@ from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from cua.agent.loop import AgentRunResult
-from cua.replay.outcomes import ReplayResult
-from cua.safety.redaction import redact_any
+from agent.loop import AgentRunResult
+from replay.outcomes import ReplayResult
+from safety.redaction import redact_any
 
 
 def _timestamp() -> str:

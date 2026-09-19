@@ -4,7 +4,7 @@ from enum import Enum
 from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
-from cua.surface.types import ElementRef
+from surface.types import ElementRef
 
 
 class ParamType(str, Enum):

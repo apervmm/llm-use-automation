@@ -14,16 +14,16 @@ load_dotenv()
 import os
 from datetime import datetime, timezone
 
-from cua.surface.browser import BrowserSession
-from cua.agent.llm_client import LLMClient
-from cua.agent.loop import AgentLoop, TranscriptStep
-from cua.artifact.recorder import record
-from cua.artifact.schema import Checkpoint, OutcomeRule
-from cua.artifact import store
-from cua.replay.executor import replay
-from cua.escalation.operator_cli import to_operator
-from cua.observability.logger import log_discovery, log_replay
-from cua.replay.outcomes import ReplayStatus
+from surface.browser import BrowserSession
+from agent.llm_client import LLMClient
+from agent.loop import AgentLoop, TranscriptStep
+from artifact.recorder import record
+from artifact.schema import Checkpoint, OutcomeRule
+from artifact import store
+from replay.executor import replay
+from escalation.operator_cli import to_operator
+from observability.logger import log_discovery, log_replay
+from replay.outcomes import ReplayStatus
 
 USERNAME = os.environ.get("PARABANK_USERNAME_LOAN", "john")
 PASSWORD = os.environ.get("PARABANK_PASSWORD_LOAN", "demo")
@@ -130,7 +130,7 @@ loan_capability = record(
         chosen_account: "from_account_id",
     },
     output_keys=["loan_status", "new_account_id"],
-    checkpoint=Checkpoint(kind="text_visible", expected="Loan Request Processed"),
+    checkpoint=Checkpoint(kind="text_visible", expected="Congratulations, your loan has been approved."),
     description="Apply for a loan against an existing ParaBank account.",
 )
 loan_capability.outcome_rules.extend([

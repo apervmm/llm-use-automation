@@ -1,15 +1,15 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from cua.surface.browser import BrowserSession
-from cua.surface.perception import snapshot
-from cua.surface.types import PageState, ElementRef
+from surface.browser import BrowserSession
+from surface.perception import snapshot
+from surface.types import PageState, ElementRef
 
 from .llm_client import LLMClient
 from .prompts import SYSTEM_PROMPT, TOOLS
 
 
-from cua.escalation.handoff import (
+from escalation.handoff import (
     raise_escalation,
     EscalationReason,
     HandoffState,
@@ -217,13 +217,15 @@ class AgentLoop:
             return f"Recorded {inp['label']} = {inp['value']}.", state, ref
         else:
             return f"ERROR: unknown tool '{name}'.", state, None
-
-
-        self.session.page.wait_for_timeout(500)
         
-        new_state = snapshot(self.session, screenshot_path=f"{self.evidence_dir}/step_{step_num}.png")
+
         if not result.success:
             return f"ERROR: {name} failed — {result.error}", new_state, ref
+
+        self.session.page.wait_for_timeout(500)
+
+        new_state = snapshot(self.session, screenshot_path=f"{self.evidence_dir}/step_{step_num}.png")
+        
         return f"{name} succeeded. New page: {self._observation_text(None, new_state, include_goal=False)}", new_state, ref
 
 

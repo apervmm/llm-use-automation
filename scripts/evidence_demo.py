@@ -2,14 +2,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from datetime import datetime, timezone
-from cua.surface.browser import BrowserSession
-from cua.agent.llm_client import LLMClient
-from cua.agent.loop import AgentLoop
-from cua.artifact.recorder import record
-from cua.artifact.schema import Checkpoint, OutcomeRule
-from cua.artifact import store
-from cua.replay.executor import replay
-from cua.observability.logger import log_discovery, log_replay
+from surface.browser import BrowserSession
+from agent.llm_client import LLMClient
+from agent.loop import AgentLoop
+from artifact.recorder import record
+from artifact.schema import Checkpoint, OutcomeRule
+from artifact import store
+from replay.executor import replay
+from observability.logger import log_discovery, log_replay
 
 
 

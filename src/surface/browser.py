@@ -4,7 +4,7 @@ from playwright.sync_api import sync_playwright, Page, Browser, TimeoutError as 
 
 from .types import ActionResult, ElementRef, LocatorStrategy
 
-from cua.safety.allowlist import Allowlist, PolicyViolation
+from safety.allowlist import Allowlist, PolicyViolation
 
 
 class BrowserSession:

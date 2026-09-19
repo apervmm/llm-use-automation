@@ -1,5 +1,5 @@
-from cua.safety.allowlist import Allowlist, PolicyViolation
-from cua.safety.redaction import redact, redact_dict
+from safety.allowlist import Allowlist, PolicyViolation
+from safety.redaction import redact, redact_dict
 
 allowlist = Allowlist()
 

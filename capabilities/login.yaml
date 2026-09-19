@@ -1,0 +1,16 @@
+capability_id: parabank.login
+goal: >
+  Log in with username 'john' and password 'demo'. When calling done,
+  include output keys 'login_succeeded' and 'message'.
+url: https://parabank.parasoft.com/parabank/index.htm
+params:
+  john: username
+  demo: password
+outputs: [login_succeeded, message]
+checkpoint:
+  kind: url_contains
+  expected: /overview.htm
+outcome_rules:
+  - name: invalid_credentials
+    kind: text_visible
+    expected: could not be verified

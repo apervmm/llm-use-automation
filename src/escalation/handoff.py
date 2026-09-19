@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 import uuid
 
-from cua.surface.browser import BrowserSession
+from surface.browser import BrowserSession
 
 
 

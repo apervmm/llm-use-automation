@@ -5,7 +5,7 @@ from urllib.parse import urlparse
 
 
 
-_CONFIG_PATH = Path(__file__).resolve().parents[3] / "config" / "allowlist.yaml"
+_CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "allowlist.yaml"
 
 
 class PolicyViolation(Exception):
