@@ -10,7 +10,7 @@ artifacts/*.json
 !/config/allowlist.yaml
 REPORT.md
 README.md
-/scripts/*
+/src/scripts/*
 /tests/*
 /evidence/
 
