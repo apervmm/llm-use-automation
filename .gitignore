@@ -10,16 +10,7 @@ artifacts/*.json
 !/config/allowlist.yaml
 REPORT.md
 README.md
-/scripts/surface.py
-/scripts/test_replay.py
-/scripts/test_recorder.py
-/scripts/agent.py
-/scripts/artifact_schema.py
-/scripts/escalation_v2.py
-/scripts/discovery_escalation.py
-/scripts/evidence_discovery_stuck.py
-/scripts/evidence_risky_confirmation.py
-/scripts/versioning.py
+/scripts/*
 /tests/*
 /evidence/
 
