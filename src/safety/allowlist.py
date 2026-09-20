@@ -3,6 +3,7 @@ import yaml
 from pathlib import Path
 from urllib.parse import urlparse
 
+import os
 
 
 _CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "allowlist.yaml"
@@ -16,7 +17,14 @@ class Allowlist:
     def __init__(self, config_path: Path = _CONFIG_PATH):
         path = config_path or _CONFIG_PATH
         config = yaml.safe_load(path.read_text())
-        self.allowed_domains = config.get("allowed_domains", [])
+
+        base_url = os.environ.get("PARABANK_BASE_URL")
+        if base_url:
+            self.allowed_domains = [urlparse(base_url).netloc]
+        else:
+            self.allowed_domains = config.get("allowed_domains", [])
+
+        # self.allowed_domains = config.get("allowed_domains", [])s
         self.allowed_routes = config.get("allowed_routes", [])
         self.allowed_actions = set(config.get("allowed_actions", []))
         self.blocked_actions = set(config.get("blocked_actions", []))

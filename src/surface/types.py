@@ -15,6 +15,7 @@ class ElementRef:
     strategy: LocatorStrategy
     value: str                     
     role: Optional[str] = None     
+    expected_name: Optional[str] = None
     fallbacks: list["ElementRef"] = field(default_factory=list)
 
 

@@ -22,24 +22,43 @@ def snapshot(session: BrowserSession, screenshot_path: str | None = None) -> Pag
     seen = set()
     for item in raw_elements:
         role, name, css = item["role"], item["name"], item["cssSelector"]
-        key = (role, name)
-        if key in seen:
-            continue
-        seen.add(key)
 
 
-        fallbacks = [ElementRef(strategy=LocatorStrategy.ROLE_NAME, value=name, role=role)]
+        # key = (role, name)
+        # if key in seen:
+        #     continue
+        # seen.add(key)
 
+        is_stable_css = css.startswith("#") or "[name=" in css
 
-        if role in ("link", "button"):
-            fallbacks.append(ElementRef(strategy=LocatorStrategy.TEXT, value=name))
-
-        ref = ElementRef(
-            strategy=LocatorStrategy.CSS,
-            value=css,
-            role=role,
-            fallbacks=fallbacks
+        role_ref = ElementRef(LocatorStrategy.ROLE_NAME, value=name, role=role, expected_name=name)
+        css_ref = ElementRef(LocatorStrategy.CSS, value=css, role=role, expected_name=name)
+        text_ref = (
+            ElementRef(LocatorStrategy.TEXT, value=name, expected_name=name)
+            if role in ("link", "button") else None
         )
+
+        if is_stable_css:
+            primary, chain = css_ref, [role_ref, text_ref]
+        else:
+            primary, chain = role_ref, [text_ref, css_ref]
+
+        primary.fallbacks = [r for r in chain if r]
+        ref = primary
+
+
+        # fallbacks = [ElementRef(strategy=LocatorStrategy.ROLE_NAME, value=name, role=role)]
+
+
+        # if role in ("link", "button"):
+        #     fallbacks.append(ElementRef(strategy=LocatorStrategy.TEXT, value=name))
+
+        # ref = ElementRef(
+        #     strategy=LocatorStrategy.CSS,
+        #     value=css,
+        #     role=role,
+        #     fallbacks=fallbacks
+        # )
 
         
         elements.append(InteractiveElement(

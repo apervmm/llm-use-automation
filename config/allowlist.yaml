@@ -1,5 +1,6 @@
 allowed_domains:
   - parabank.parasoft.com
+  - localhost:8080
 allowed_routes:
   - "/parabank/index.htm"
   - "/parabank/login.htm*"

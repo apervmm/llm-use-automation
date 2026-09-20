@@ -3,7 +3,7 @@
   "version": 1,
   "description": "Recorded from goal: Apply for a loan with amount '1000' and down payment '10'. Select an account from the dropdown using select_option even if only one option exists, click Apply Now, and wait for 'Loan Request Processed' to appear. When calling done, include 'loan_status' and, if approved, 'new_account_id'. When you read 'new_account_id', always pass element_name set to 'Your new account number:' in the read tool call, so the value can be resolved to a stable element for later replay.\n",
   "target_app": "parabank",
-  "entry_url": "https://parabank.parasoft.com/parabank/requestloan.htm",
+  "entry_url": "http://localhost:8080/parabank/requestloan.htm",
   "inputs": [
     {
       "name": "amount",
@@ -24,7 +24,7 @@
       "type": "string",
       "description": "",
       "required": true,
-      "example": "12345"
+      "example": "12567"
     }
   ],
   "outputs": [
@@ -51,11 +51,13 @@
         "strategy": "css",
         "value": "#amount",
         "role": "textbox",
+        "expected_name": "Loan Amount: $",
         "fallbacks": [
           {
             "strategy": "role_name",
             "value": "Loan Amount: $",
             "role": "textbox",
+            "expected_name": "Loan Amount: $",
             "fallbacks": []
           }
         ]
@@ -71,11 +73,13 @@
         "strategy": "css",
         "value": "#downPayment",
         "role": "textbox",
+        "expected_name": "Down Payment: $",
         "fallbacks": [
           {
             "strategy": "role_name",
             "value": "Down Payment: $",
             "role": "textbox",
+            "expected_name": "Down Payment: $",
             "fallbacks": []
           }
         ]
@@ -91,37 +95,42 @@
         "strategy": "css",
         "value": "#fromAccountId",
         "role": "combobox",
+        "expected_name": "From account #:",
         "fallbacks": [
           {
             "strategy": "role_name",
             "value": "From account #:",
             "role": "combobox",
+            "expected_name": "From account #:",
             "fallbacks": []
           }
         ]
       },
       "value": "{from_account_id}",
       "read_label": null,
-      "description": "Select '12345' in 'From account #:'"
+      "description": "Select '12567' in 'From account #:'"
     },
     {
       "step_num": 4,
       "action": "click",
       "target": {
-        "strategy": "css",
-        "value": "div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(2) > div > div:nth-of-type(1) > form > table > tbody > tr:nth-of-type(4) > td:nth-of-type(2) > input",
+        "strategy": "role_name",
+        "value": "Apply Now",
         "role": "button",
+        "expected_name": "Apply Now",
         "fallbacks": [
-          {
-            "strategy": "role_name",
-            "value": "Apply Now",
-            "role": "button",
-            "fallbacks": []
-          },
           {
             "strategy": "text",
             "value": "Apply Now",
             "role": null,
+            "expected_name": "Apply Now",
+            "fallbacks": []
+          },
+          {
+            "strategy": "css",
+            "value": "div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(2) > div > div:nth-of-type(1) > form > table > tbody > tr:nth-of-type(4) > td:nth-of-type(2) > input",
+            "role": "button",
+            "expected_name": "Apply Now",
             "fallbacks": []
           }
         ]
@@ -145,17 +154,20 @@
         "strategy": "css",
         "value": "#newAccountId",
         "role": "link",
+        "expected_name": "Your new account number:",
         "fallbacks": [
           {
             "strategy": "role_name",
             "value": "Your new account number:",
             "role": "link",
+            "expected_name": "Your new account number:",
             "fallbacks": []
           },
           {
             "strategy": "text",
             "value": "Your new account number:",
             "role": null,
+            "expected_name": "Your new account number:",
             "fallbacks": []
           }
         ]
@@ -169,7 +181,7 @@
     "kind": "text_visible",
     "expected": "Congratulations, your loan has been approved."
   },
-  "created_at": "2026-09-20T00:36:11.911096+00:00",
+  "created_at": "2026-09-20T13:32:42.509010+00:00",
   "source": "llm_discovery",
   "outcome_rules": [
     {

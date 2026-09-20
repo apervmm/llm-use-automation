@@ -17,6 +17,7 @@ from artifact.schema import Checkpoint, OutcomeRule
 from artifact import store
 from replay.executor import replay as run_replay
 from replay.outcomes import ReplayStatus
+from replay.checkpoint import checkpoint_met
 from escalation.operator_cli import to_operator
 from observability.logger import log_discovery, log_replay
 
@@ -24,6 +25,26 @@ from observability.logger import log_discovery, log_replay
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+
+
+def _load_config(path: str) -> dict:
+    # text = Path(path).read_text()
+    # config = yaml.safe_load(Path(path).read_text())
+    def expand(value):
+        if isinstance(value, str):
+            return os.path.expandvars(value)
+        if isinstance(value, dict):
+            return {expand(key): expand(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [expand(item) for item in value]
+        return value
+
+    return expand(yaml.safe_load(Path(path).read_text()))
+
+    # text = os.path.expandvars(text)  
+    # return yaml.safe_load(text)
+    # return _expand_env(config)
 
 
 def _parse_pairs(text: str) -> dict:
@@ -70,7 +91,7 @@ def discover(config_path, max_steps):
     LLM-driven discovery session using a capability config file
     To reuse an existing capability, use `replay`.
     """
-    config = yaml.safe_load(Path(config_path).read_text())
+    config = _load_config(config_path)
     capability_id = config["capability_id"]
 
     run_id = uuid.uuid4().hex[:12]
@@ -79,6 +100,8 @@ def discover(config_path, max_steps):
 
     with BrowserSession(headless=False) as session:
         _authenticate_if_needed(session, config)
+
+        checkpoint = Checkpoint(**config["checkpoint"]) 
 
         agent = AgentLoop(
             session, 
@@ -89,6 +112,11 @@ def discover(config_path, max_steps):
             run_id=run_id
         )
         result = agent.run(goal=config["goal"], start_url=config["url"])
+
+        if result.success and not checkpoint_met(session, checkpoint):
+            result.success = False
+            result.stop_reason = "checkpoint_not_met_despite_done"
+        
 
     log_discovery(result, evidence_dir, run_id=run_id)
     click.echo(f"Discovery {'succeeded' if result.success else 'failed'} ({result.stop_reason})")
@@ -111,7 +139,8 @@ def discover(config_path, max_steps):
         entry_url=config["url"],
         param_map=param_map,
         output_keys=config.get("outputs", []),
-        checkpoint=Checkpoint(**config["checkpoint"]),
+        # checkpoint=Checkpoint(**config["checkpoint"]),
+        checkpoint=checkpoint,
         description=f"Recorded from goal: {config['goal']}",
         outcome_derived_outputs=config.get("outcome_derived_outputs", []), 
     )
@@ -147,7 +176,7 @@ def replay(config_path, inputs, version_, confirmed):
     """
     Deterministic replay of a saved capability
     """
-    config = yaml.safe_load(Path(config_path).read_text())
+    config = _load_config(config_path)
     capability_id = config["capability_id"]
     capability = store.load(capability_id, version=version_)
     input_dict = _parse_pairs(inputs)

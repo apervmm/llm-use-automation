@@ -8,11 +8,12 @@ goal: >
   'new_account_id'. When you read 'new_account_id', always pass
   element_name set to 'Your new account number:' in the read tool call,
   so the value can be resolved to a stable element for later replay.
-url: https://parabank.parasoft.com/parabank/requestloan.htm
+# url: https://parabank.parasoft.com/parabank/requestloan.htm
+url: ${PARABANK_BASE_URL}/parabank/requestloan.htm
 auth_capability_id: parabank.login
 auth_inputs:
-  username: john
-  password: demo
+  username: ${PARABANK_USERNAME}
+  password: ${PARABANK_PASSWORD}
 params:
   "1000": amount
   "10": down_payment
