@@ -1,0 +1,36 @@
+{
+  "run_type": "replay",
+  "run_id": "c4b77da1299a",
+  "timestamp": "20260920T003715Z",
+  "inputs": {
+    "amount": "100000",
+    "down_payment": "90000",
+    "from_account_id": "13344"
+  },
+  "status": "business_outcome",
+  "capability_id": "parabank.request_loan",
+  "outputs": {
+    "loan_status": "Denied",
+    "new_account_id": null
+  },
+  "outcome_name": "insufficient_funds_for_down_payment",
+  "failed_step": null,
+  "expected": null,
+  "observed": null,
+  "error": null,
+  "escalations": [
+    {
+      "reason": "risky_confirmation",
+      "capability_or_goal": "parabank.request_loan",
+      "current_step": null,
+      "current_url": "https://parabank.parasoft.com/parabank/overview.htm",
+      "detail": "This will submit a NEW loan application with: amount=100000, down_payment=90000, from_account_id=13344.",
+      "screenshot_path": "evidence/replay_parabank.request_loan_20260920T003635Z_c4b77da1299a/escalation_e186fbb66bfb4a59b2bd59d490d0031a.png",
+      "timestamp": "2026-09-20T00:36:36.447142+00:00",
+      "operator_decision": "resume",
+      "human_actions": [
+        "approving loan"
+      ]
+    }
+  ]
+}

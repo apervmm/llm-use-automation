@@ -5,6 +5,7 @@ __pycache__/
 artifacts/*.json
 !artifacts/.gitkeep
 !artifacts/parabank.login.v*.json
+!artifacts/parabank.request_loan.v*.json
 .pytest_cache/
 /config/*
 !/config/allowlist.yaml
@@ -12,6 +13,5 @@ REPORT.md
 README.md
 /src/scripts/*
 /tests/*
-/evidence/
 
 

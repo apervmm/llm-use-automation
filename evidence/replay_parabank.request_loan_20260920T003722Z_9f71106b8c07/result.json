@@ -1,0 +1,46 @@
+{
+  "run_type": "replay",
+  "run_id": "9f71106b8c07",
+  "timestamp": "20260920T003812Z",
+  "inputs": {
+    "amount": "1000",
+    "down_payment": "10",
+    "from_account_id": "99999"
+  },
+  "status": "failure",
+  "capability_id": "parabank.request_loan",
+  "outputs": {},
+  "outcome_name": null,
+  "failed_step": 3,
+  "expected": "Select '12345' in 'From account #:'",
+  "observed": "The dropdown has 19 option(s) loaded, but '99999' isn't one of them.",
+  "error": "Step 3 (select_option) failed even after operator intervention: The dropdown has 19 option(s) loaded, but '99999' isn't one of them.",
+  "escalations": [
+    {
+      "reason": "risky_confirmation",
+      "capability_or_goal": "parabank.request_loan",
+      "current_step": null,
+      "current_url": "https://parabank.parasoft.com/parabank/overview.htm",
+      "detail": "This will submit a NEW loan application with: amount=1000, down_payment=10, from_account_id=99999.",
+      "screenshot_path": "evidence/replay_parabank.request_loan_20260920T003722Z_9f71106b8c07/escalation_e687728e49ac4f2baba935b8dacbe9c2.png",
+      "timestamp": "2026-09-20T00:37:24.304003+00:00",
+      "operator_decision": "resume",
+      "human_actions": [
+        "approving loan"
+      ]
+    },
+    {
+      "reason": "replay_failure",
+      "capability_or_goal": "parabank.request_loan",
+      "current_step": 3,
+      "current_url": "https://parabank.parasoft.com/parabank/requestloan.htm",
+      "detail": "Step 3 (select_option) failed: The dropdown has 19 option(s) loaded, but '99999' isn't one of them.",
+      "screenshot_path": "evidence/escalations/escalation_9db5722df5bd4f11be591e51ee277c9a.png",
+      "timestamp": "2026-09-20T00:37:43.508032+00:00",
+      "operator_decision": "resume",
+      "human_actions": [
+        "trying once more"
+      ]
+    }
+  ]
+}
