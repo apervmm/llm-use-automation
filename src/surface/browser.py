@@ -36,9 +36,9 @@ class BrowserSession:
             return ActionResult(False, "navigate", url, error=str(e))
 
 
-    def _diagnose_select_failure(self, ref: ElementRef, value: str) -> str:
+    def _diagnose_select_failure(self, loc, value: str) -> str:
         try:
-            loc = self.page.locator(ref.value).first
+            # loc = self.page.locator(ref.value).firsts
             options = loc.locator("option")
             count = options.count()
             if not loc.is_visible():
@@ -139,14 +139,16 @@ class BrowserSession:
             return ActionResult(False, "click", description or ref.value, error=str(e))
         
     def select_option(self, ref: ElementRef, value: str, description: str = "") -> ActionResult:
+        # loc = self._resolve(ref) 
         try:
             self.allowlist.check_action("select_option", url=self.page.url)
         except PolicyViolation as e:
             return ActionResult(False, "select_option", description or ref.value, error=str(e))
 
+        loc = self._resolve(ref) 
         start = time.time()
         try:
-            self._resolve(ref).select_option(value=value, timeout=5000)
+            loc.select_option(value=value, timeout=5000)
             self.allowlist._check_url(self.page.url)  
             return ActionResult(True, "select_option", description or ref.value, duration_ms=int((time.time() - start) * 1000), value=value)
         except PolicyViolation as e:

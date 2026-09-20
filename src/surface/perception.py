@@ -24,10 +24,10 @@ def snapshot(session: BrowserSession, screenshot_path: str | None = None) -> Pag
         role, name, css = item["role"], item["name"], item["cssSelector"]
 
 
-        key = (role, name)
-        if key in seen:
-            continue
-        seen.add(key)
+        # key = (role, name)
+        # if key in seen:
+        #     continue
+        # seen.add(key)
 
         is_stable_css = css.startswith("#") or "[name=" in css
 
