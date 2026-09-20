@@ -27,10 +27,23 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
+def _expand_env(obj):
+    if isinstance(obj, str):
+        return os.path.expandvars(obj)
+    if isinstance(obj, dict):
+        return {k: _expand_env(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_expand_env(v) for v in obj]
+    return obj
+
+
 def _load_config(path: str) -> dict:
-    text = Path(path).read_text()
-    text = os.path.expandvars(text)  
-    return yaml.safe_load(text)
+    # text = Path(path).read_text()
+    config = yaml.safe_load(Path(path).read_text())
+    # text = os.path.expandvars(text)  
+    # return yaml.safe_load(text)
+    return _expand_env(config)
+
 
 def _parse_pairs(text: str) -> dict:
     return dict(pair.split("=", 1) for pair in text.split(",") if pair)

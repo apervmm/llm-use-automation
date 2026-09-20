@@ -3,5 +3,3 @@ services:
     image: parasoft/parabank
     ports:
       - "8080:8080"
-      - "61616:61616"
-      - "9001:9001"
