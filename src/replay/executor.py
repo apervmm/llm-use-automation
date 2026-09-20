@@ -5,6 +5,7 @@ from artifact.schema import Capability, StepAction, Checkpoint, OutcomeRule, Ris
 from escalation.handoff import raise_escalation, EscalationReason, HandoffState, OperatorDecision
 from .outcomes import ReplayResult, ReplayStatus
 from safety.redaction import redact_any
+from replay.checkpoint import checkpoint_met
 
 
 def replay(
@@ -244,14 +245,14 @@ def _substitute(template: str, inputs: dict) -> str:
     return re.sub(r"\{(\w+)\}", _sub, template)
 
 
-def _checkpoint_met(session: BrowserSession, checkpoint: Checkpoint) -> bool:
-    if checkpoint.kind == "url_contains":
-        return checkpoint.expected in session.page.url
-    if checkpoint.kind == "text_visible":
-        return checkpoint.expected in session.page.inner_text("body")
-    if checkpoint.kind == "element_visible":
-        return session.page.locator(checkpoint.expected).first.is_visible()
-    return False
+# def _checkpoint_met(session: BrowserSession, checkpoint: Checkpoint) -> bool:
+#     if checkpoint.kind == "url_contains":
+#         return checkpoint.expected in session.page.url
+#     if checkpoint.kind == "text_visible":
+#         return checkpoint.expected in session.page.inner_text("body")
+#     if checkpoint.kind == "element_visible":
+#         return session.page.locator(checkpoint.expected).first.is_visible()
+#     return False
 
 
 def _check_outcomes(session: BrowserSession, rules: list[OutcomeRule]) -> str | None:
@@ -299,11 +300,11 @@ def _wait_for_checkpoint(
     can legitimately take a moment after the triggering action completes."""
     elapsed = 0
     while elapsed < timeout_ms:
-        if _checkpoint_met(session, checkpoint):
+        if checkpoint_met(session, checkpoint):
             return True
         session.page.wait_for_timeout(interval_ms)
         elapsed += interval_ms
-    return _checkpoint_met(session, checkpoint)
+    return checkpoint_met(session, checkpoint)
 
 
 

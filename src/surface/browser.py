@@ -36,6 +36,41 @@ class BrowserSession:
             return ActionResult(False, "navigate", url, error=str(e))
 
 
+    def _diagnose_select_failure(self, ref: ElementRef, value: str) -> str:
+        try:
+            loc = self.page.locator(ref.value).first
+            options = loc.locator("option")
+            count = options.count()
+            if not loc.is_visible():
+                return "The dropdown isn't visible on the page right now."
+            if count == 0:
+                return "The dropdown is visible but has 0 options loaded — the page likely hadn't finished loading yet."
+            values = [options.nth(i).get_attribute("value") for i in range(count)]
+            if value in values:
+                return f"'{value}' IS present among {values} — the failure was something else (timing, stale element, etc.)."
+            return f"The dropdown has {count} option(s): {values}. '{value}' isn't one of them."
+        except Exception as e:
+            return f"Couldn't inspect the dropdown: {type(e).__name__}: {e}"
+    
+
+    def _verify(self, loc, candidate: ElementRef) -> bool:
+        if not candidate.expected_name:
+            return True  # nothing to check against (e.g. old artifacts)
+        if candidate.role not in ("link", "button"):
+            return True
+        try:
+            actual = loc.evaluate(
+                "el => (el.getAttribute('aria-label') || el.innerText || el.textContent || '').trim()"
+            )
+        except Exception:
+            return True
+        
+        if not actual:
+            return True
+        
+        return candidate.expected_name.strip().lower() in actual.strip().lower()
+    
+
     # esolving a locator descriptor to a live locator
     def _resolve(self, ref: ElementRef):
         candidates = [ref] + ref.fallbacks
@@ -44,26 +79,15 @@ class BrowserSession:
             try:
                 loc = self._to_playwright_locator(candidate)
                 loc.wait_for(state="visible", timeout=3000)
+                if not self._verify(loc, candidate):
+                    errors.append(f"{candidate.strategy.value}='{candidate.value}': resolved but name mismatch")
+                    continue
                 return loc
             except Exception as e:
                 errors.append(f"{candidate.strategy.value}='{candidate.value}': {type(e).__name__}: {e}")
                 continue
         detail = " | ".join(errors)
         raise RuntimeError(f"No locator strategy matched. Attempts: {detail}")
-
-
-    def _diagnose_select_failure(self, ref: ElementRef, value: str) -> str:
-        try:
-            loc = self.page.locator(ref.value).first
-            option_count = loc.locator("option").count()
-            visible = loc.is_visible()
-            if not visible:
-                return "The dropdown isn't visible on the page right now."
-            if option_count == 0:
-                return "The dropdown is visible but has 0 options loaded — the page likely hadn't finished loading yet."
-            return f"The dropdown has {option_count} option(s) loaded, but '{value}' isn't one of them."
-        except Exception:
-            return "Couldn't locate the dropdown on the page to check its state."
 
 
     def _to_playwright_locator(self, ref: ElementRef):
@@ -120,8 +144,9 @@ class BrowserSession:
             return ActionResult(True, "select_option", description or ref.value, duration_ms=int((time.time() - start) * 1000), value=value)
         except PolicyViolation as e:
             return ActionResult(False, "select_option", description or ref.value, error=str(e))
-        except Exception:
-            return ActionResult(False, "select_option", description or ref.value, error=self._diagnose_select_failure(ref, value))
+        except Exception as e:
+            diagnosis = self._diagnose_select_failure(ref, value)
+            return ActionResult(False, "select_option", description or ref.value, error=f"{diagnosis} | raw error: {type(e).__name__}: {e}")
 
 
     def type_text(self, ref: ElementRef, text: str, description: str = "") -> ActionResult:
