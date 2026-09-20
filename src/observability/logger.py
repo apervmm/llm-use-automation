@@ -49,6 +49,8 @@ def log_discovery(
         "escalations": result.escalations, 
         "outputs": result.outputs,
         "transcript": [_to_jsonable(step) for step in result.transcript],
+        # TODO: later
+        # "escalations": result.escalations,
     }
 
     summary = redact_any(summary, sensitive_values=set(sensitive_values or []))
@@ -83,6 +85,7 @@ def log_replay(
         "expected": result.expected,
         "observed": result.observed,
         "error": result.error,
+        "escalations": result.escalations,
     }
     summary = redact_any(summary)
 
