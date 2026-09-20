@@ -28,7 +28,7 @@ The public ParaBank `parabank.parasoft.com` is a shared sandbox that resets peri
    PARABANK_PASSWORD=<the password you just registered>
 ```
 
-*Note: registered username and password will not work in the production app `parabank.parasoft.com` if you want to use own credentials, so I would recomend going by the ones provided in the `.env.example`
+*Note: registered username and password will not work in the production app `parabank.parasoft.com` if you want to use own credentials, so I would recomend going by the ones provided in the `.env.example`*
 
 
 ## Run
