@@ -12,8 +12,8 @@ goal: >
 url: ${PARABANK_BASE_URL}/parabank/requestloan.htm
 auth_capability_id: parabank.login
 auth_inputs:
-  username: john
-  password: demo
+  username: ${PARABANK_USERNAME}
+  password: ${PARABANK_PASSWORD}
 params:
   "1000": amount
   "10": down_payment
