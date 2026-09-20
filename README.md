@@ -2,7 +2,7 @@
 
 1. `python3 -m venv .venv && source .venv/bin/activate`
 2. `pip install -r requirements.txt && playwright install chromium`
-3.  Copy `.env.example` to `.env`, add your `ANTHROPIC_API_KEY`.
+3.  `touch .env`, then copy `.env.example` to `.env`, add your `ANTHROPIC_API_KEY`.
    
 
 ## Run
