@@ -56,8 +56,15 @@ class BrowserSession:
     def _verify(self, loc, candidate: ElementRef) -> bool:
         if not candidate.expected_name:
             return True  # nothing to check against (e.g. old artifacts)
+        
+        if candidate.strategy == LocatorStrategy.CSS:
+            is_stable = candidate.value.startswith("#") or "[name=" in candidate.value
+            if is_stable:
+                return True
+            
         if candidate.role not in ("link", "button"):
             return True
+        
         try:
             actual = loc.evaluate(
                 "el => (el.getAttribute('aria-label') || el.innerText || el.textContent || '').trim()"

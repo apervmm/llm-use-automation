@@ -1,7 +1,7 @@
 {
   "run_type": "replay",
-  "run_id": "10bdf4137660",
-  "timestamp": "20260920T132206Z",
+  "run_id": "c71a8934a17a",
+  "timestamp": "20260920T133319Z",
   "inputs": {
     "amount": "1000",
     "down_payment": "10",
@@ -11,7 +11,7 @@
   "capability_id": "parabank.request_loan",
   "outputs": {
     "loan_status": "Approved",
-    "new_account_id": "Your new account number:"
+    "new_account_id": "14121"
   },
   "outcome_name": null,
   "failed_step": null,
@@ -25,11 +25,11 @@
       "current_step": null,
       "current_url": "http://localhost:8080/parabank/overview.htm",
       "detail": "This will submit a NEW loan application with: amount=1000, down_payment=10, from_account_id=13344.",
-      "screenshot_path": "evidence/replay_parabank.request_loan_20260920T132153Z_10bdf4137660/escalation_333a3b0dfecf4564a20e514b7ca87e10.png",
-      "timestamp": "2026-09-20T13:21:54.410369+00:00",
+      "screenshot_path": "evidence/replay_parabank.request_loan_20260920T133250Z_c71a8934a17a/escalation_0867b73dafcb44aeb0870ebc01b27152.png",
+      "timestamp": "2026-09-20T13:32:51.915015+00:00",
       "operator_decision": "resume",
       "human_actions": [
-        "approving loan"
+        "approving"
       ]
     }
   ]
