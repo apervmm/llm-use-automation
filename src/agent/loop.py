@@ -147,7 +147,7 @@ class AgentLoop:
 
             if (not success and consecutive_failures >= self.STUCK_FAILURE_THRESHOLD
                     and self.on_escalation and escalations_used < self.max_escalations):
-                decision = self._escalate(
+                decision, escalation_record = self._escalate(
                     handoff_state, goal, step_num,
                     f"{consecutive_failures} consecutive failed actions — agent appears stuck.",
                 )
