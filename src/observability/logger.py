@@ -46,11 +46,9 @@ def log_discovery(
         "goal": result.goal,
         "success": result.success,
         "stop_reason": result.stop_reason,
-        "escalations": result.escalations, 
+        "escalations": result.escalations,
         "outputs": result.outputs,
         "transcript": [_to_jsonable(step) for step in result.transcript],
-        # TODO: later
-        # "escalations": result.escalations,
     }
 
     summary = redact_any(summary, sensitive_values=set(sensitive_values or []))

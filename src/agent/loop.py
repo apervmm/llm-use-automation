@@ -36,7 +36,7 @@ class AgentRunResult:
     stop_reason: str
     transcript: list[TranscriptStep] = field(default_factory=list)
     outputs: dict = field(default_factory=dict)
-    escalations: int = 0
+    escalations: list[dict] = field(default_factory=list)
 
 
 class AgentLoop:
@@ -53,7 +53,7 @@ class AgentLoop:
             evidence_dir: str = "evidence/discovery",
             on_escalation=None, 
             max_escalations: int = 2,
-            run_id=None
+            run_id: str | None = None,
         ):
         self.session = session
         self.llm = llm
@@ -69,6 +69,7 @@ class AgentLoop:
         self.session.goto(start_url)
         transcript: list[TranscriptStep] = []
         outputs: dict = {}
+        escalations: list[dict] = []
 
         state = snapshot(self.session, screenshot_path=f"{self.evidence_dir}/step_0.png")
         messages = [{"role": "user", "content": self._observation_text(goal, state)}]
@@ -85,38 +86,40 @@ class AgentLoop:
         while True:
             if step_num > step_limit:
                 if self.on_escalation and escalations_used < self.max_escalations:
-                    decision = self._escalate(
+                    decision, escalation_record = self._escalate(
                         handoff_state, goal, step_num,
                         f"Reached max_steps ({step_limit}) without completing the goal.",
                     )
+                    escalations.append(escalation_record)
                     escalations_used += 1
                     if decision == OperatorDecision.ABORT:
-                        return AgentRunResult(goal, False, "aborted_by_operator",transcript, outputs, escalations_used)
+                        return AgentRunResult(goal, False, "aborted_by_operator",transcript, outputs, escalations)
                     if decision == OperatorDecision.RESUME:
                         step_limit += self.STUCK_STEP_EXTENSION
                         state = snapshot(self.session, screenshot_path=f"{self.evidence_dir}/step_{step_num}_resumed.png")
                         messages.append({"role": "user", "content": self._observation_text(goal, state)})
                         continue
-                return AgentRunResult(goal, False, "max_steps_exceeded", transcript, outputs, escalations_used)
+                return AgentRunResult(goal, False, "max_steps_exceeded", transcript, outputs, escalations)
 
             response = self.llm.decide(messages, SYSTEM_PROMPT, TOOLS)
             tool_use = next((b for b in response.content if b.type == "tool_use"), None)
 
             if tool_use is None:
                 if self.on_escalation and escalations_used < self.max_escalations:
-                    decision = self._escalate(
+                    decision, escalation_record = self._escalate(
                         handoff_state, goal, step_num,
                         "Model did not return a tool call — no clear next action.",
                     )
 
+                    escalations.append(escalation_record)
                     escalations_used += 1
                     if decision == OperatorDecision.ABORT:
-                        return AgentRunResult(goal, False, "aborted_by_operator",transcript, outputs, escalations_used)
+                        return AgentRunResult(goal, False, "aborted_by_operator",transcript, outputs, escalations)
                     if decision == OperatorDecision.RESUME:
                         state = snapshot(self.session, screenshot_path=f"{self.evidence_dir}/step_{step_num}_resumed.png")
                         messages.append({"role": "user", "content": self._observation_text(goal, state)})
                         continue
-                return AgentRunResult(goal, False, "no_tool_call", transcript, outputs, escalations_used)
+                return AgentRunResult(goal, False, "no_tool_call", transcript, outputs, escalations)
 
             messages.append({"role": "assistant", "content": response.content})
 
@@ -124,7 +127,7 @@ class AgentLoop:
                 outputs = tool_use.input.get("outputs", {})
                 transcript.append(TranscriptStep(
                     step_num, state.url, "done", tool_use.input, True, "goal completed"))
-                return AgentRunResult(goal, True, "goal_met", transcript, outputs, escalations_used)
+                return AgentRunResult(goal, True, "goal_met", transcript, outputs, escalations)
 
             result_text, state, ref= self._execute(tool_use, state, step_num)
             success = "ERROR" not in result_text
@@ -148,9 +151,12 @@ class AgentLoop:
                     handoff_state, goal, step_num,
                     f"{consecutive_failures} consecutive failed actions — agent appears stuck.",
                 )
+
+                escalations.append(escalation_record)
                 escalations_used += 1
+
                 if decision == OperatorDecision.ABORT:
-                    return AgentRunResult(goal, False, "aborted_by_operator", transcript, outputs, escalations_used)
+                    return AgentRunResult(goal, False, "aborted_by_operator", transcript, outputs, escalations)
                 consecutive_failures = 0
                 state = snapshot(self.session, screenshot_path=f"{self.evidence_dir}/step_{step_num}_resumed.png")
                 messages.append({
