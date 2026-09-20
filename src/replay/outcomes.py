@@ -18,3 +18,4 @@ class ReplayResult:
     expected: str | None = None
     observed: str | None = None
     error: str | None = None
+    escalations: list[dict] = field(default_factory=list)

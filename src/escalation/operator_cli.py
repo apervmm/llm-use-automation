@@ -60,12 +60,13 @@ def to_operator(request: EscalationRequest, state: HandoffState, evidence_dir: s
             break
         print("Please type exactly 'resume' or 'abort' — try again.")
 
-
+    human_actions = []
     if decision == OperatorDecision.RESUME:
         print("Resuming...\n")
         note = input("Optional note for the record (press Enter to skip): ").strip()
         if note:
-            state.record_human_action(note)
+            # state.record_human_action(note)
+            human_actions.append(note)
         state.resume_automation()
     else:
         print("Aborting run at operator's request...\n")
@@ -79,11 +80,25 @@ def to_operator(request: EscalationRequest, state: HandoffState, evidence_dir: s
     #     print("Aborting run at operator's request...\n")
 
 
-    Path(evidence_dir).mkdir(parents=True, exist_ok=True)
-    record_path = Path(request.evidence_dir) / f"escalation_{uuid.uuid4().hex}.json"
-    record_path.write_text(json.dumps({
+    # Path(evidence_dir).mkdir(parents=True, exist_ok=True)
+    # record_path = Path(request.evidence_dir) / f"escalation_{uuid.uuid4().hex}.json"
+    # record_path.write_text(json.dumps({
+    #     "reason": request.reason.value,
+    #     "run_id": request.run_id,
+    #     "capability_or_goal": request.capability_or_goal,
+    #     "current_step": request.current_step,
+    #     "current_url": request.current_url,
+    #     "detail": request.detail,
+    #     "screenshot_path": request.screenshot_path,
+    #     "timestamp": request.timestamp,
+    #     "operator_decision": decision.value,
+    #     "human_actions": state.human_actions_log,
+    # }, indent=2))
+    # print(f"Escalation record saved to {record_path}")
+
+
+    escalation_record = {
         "reason": request.reason.value,
-        "run_id": request.run_id,
         "capability_or_goal": request.capability_or_goal,
         "current_step": request.current_step,
         "current_url": request.current_url,
@@ -91,9 +106,8 @@ def to_operator(request: EscalationRequest, state: HandoffState, evidence_dir: s
         "screenshot_path": request.screenshot_path,
         "timestamp": request.timestamp,
         "operator_decision": decision.value,
-        "human_actions": state.human_actions_log,
-    }, indent=2))
-    print(f"Escalation record saved to {record_path}")
+        "human_actions": human_actions,
+    }
 
 
-    return decision
+    return decision, escalation_record

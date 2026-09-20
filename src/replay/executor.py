@@ -22,6 +22,7 @@ def replay(
     Checkpoint miss => checks declared outcome_rules before concluding it's a hard failure.
     """
     handoff_state = HandoffState()
+    escalations: list[dict] = [] 
 
     if capability.risk_level == RiskLevel.RISKY and not confirmed:
         if on_escalation:
@@ -38,13 +39,15 @@ def replay(
                 run_id=run_id,
             )
 
-            decision = on_escalation(req, handoff_state)
+            decision, escalation_record = on_escalation(req, handoff_state)
+            escalations.append(escalation_record)
 
             if decision == OperatorDecision.ABORT:
                 return ReplayResult(
                     status=ReplayStatus.FAILURE, 
                     capability_id=capability.capability_id,
-                    error="Replay aborted by operator during risky-confirmation escalation."
+                    error="Replay aborted by operator during risky-confirmation escalation.",
+                    escalations=escalations
                 )
             
             if decision == OperatorDecision.RESUME:
@@ -54,9 +57,8 @@ def replay(
             return ReplayResult(
                 status=ReplayStatus.FAILURE,
                 capability_id=capability.capability_id,
-                error=(
-                    f"'{capability.capability_id}' requires confirmed=True to replay."
-                ),
+                error=(f"'{capability.capability_id}' requires confirmed=True to replay."),
+                escalations=escalations
             )
         
     _validate_inputs(capability, inputs)
@@ -71,6 +73,7 @@ def replay(
             expected=f"navigate to {capability.entry_url}",
             observed=nav_result.error,
             error=f"Failed to reach entry URL: {nav_result.error}",
+            escalations=escalations,
         )
 
     read_values: dict[str, str] = {}
@@ -109,6 +112,7 @@ def replay(
                     capability_id=capability.capability_id,
                     outcome_name=outcome,
                     outputs=_extract_outputs(capability, read_values, status=ReplayStatus.BUSINESS_OUTCOME, outcome_name=outcome),
+                    escalations=escalations,
                 )
             if on_escalation:
                 req = raise_escalation(
@@ -119,7 +123,11 @@ def replay(
                     f"Step {step.step_num} ({step.action.value}) failed: {error_text}",
                     current_step=step.step_num,
                 )
-                decision = on_escalation(req, handoff_state)
+
+
+                decision, escalation_record = on_escalation(req, handoff_state)
+                escalations.append(escalation_record)
+                
 
 
                 if decision == OperatorDecision.RESUME:
@@ -135,6 +143,7 @@ def replay(
                             capability_id=capability.capability_id,
                             outcome_name=outcome,
                             outputs=_extract_outputs(capability, read_values, status=ReplayStatus.BUSINESS_OUTCOME, outcome_name=outcome),
+                            escalations=escalations,
                         )
                     
 
@@ -147,6 +156,7 @@ def replay(
                         expected=step.description,
                         observed=retry_error,
                         error=f"Step {step.step_num} ({step.action.value}) failed even after operator intervention: {retry_error}",
+                        escalations=escalations,
                     )
             return ReplayResult(
                 status=ReplayStatus.FAILURE,
@@ -155,6 +165,7 @@ def replay(
                 expected=step.description,
                 observed=error_text,
                 error=f"Step {step.step_num} ({step.action.value}) failed: {error_text}",
+                escalations=escalations,
             )
 
         step_index += 1  
@@ -169,6 +180,7 @@ def replay(
                 capability_id=capability.capability_id,
                 outcome_name=outcome,
                 outputs=_extract_outputs(capability, read_values, status=ReplayStatus.BUSINESS_OUTCOME, outcome_name=outcome),
+                escalations=escalations,
             )
         
 
@@ -181,10 +193,18 @@ def replay(
                 f"Checkpoint not met: {capability.checkpoint.kind}={capability.checkpoint.expected}",
                 current_step=capability.steps[-1].step_num if capability.steps else None,
             )
-            decision = on_escalation(req, handoff_state)
+            
+            decision, escalation_record = on_escalation(req, handoff_state)
+            escalations.append(escalation_record)
+
             if decision == OperatorDecision.RESUME and _wait_for_checkpoint(session, capability.checkpoint):
                 outputs = _extract_outputs(capability, read_values, status=ReplayStatus.SUCCESS)
-                return ReplayResult(status=ReplayStatus.SUCCESS, capability_id=capability.capability_id, outputs=outputs)
+                return ReplayResult(
+                    status=ReplayStatus.SUCCESS, 
+                    capability_id=capability.capability_id, 
+                    outputs=outputs,
+                    escalations=escalations,
+                )
 
 
 
@@ -195,11 +215,17 @@ def replay(
             expected=f"{capability.checkpoint.kind}={capability.checkpoint.expected}",
             observed=session.page.url,
             error="Checkpoint not met and no matching business outcome found.",
+            escalations=escalations,
         )
     
 
     outputs = _extract_outputs(capability, read_values, status=ReplayStatus.SUCCESS)
-    return ReplayResult(status=ReplayStatus.SUCCESS, capability_id=capability.capability_id, outputs=outputs)
+    return ReplayResult(
+        status=ReplayStatus.SUCCESS, 
+        capability_id=capability.capability_id, 
+        outputs=outputs,
+        escalations=escalations,
+    )
 
 
 def _validate_inputs(capability: Capability, inputs: dict) -> None:
