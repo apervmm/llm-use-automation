@@ -6,27 +6,7 @@ Based on the assignment specification, the system has two distinct flows of the 
 **Agent:** takes two parameters 
 
 
-### Flowchart
-```mermaid
----
-config:
-  theme: dark
-  layout: fixed
----
-flowchart TB
-    cli("CLI") -- 1 --> agent("Agent")
-    agent -- 2 --> surface["surface"]
-    agent -- 3 --> artifact["artifact"]
-    safety["safety"] -- risk level --> artifact
-    agent -- 4 --> logs["logs"]
-    cli -- 5 --> replay("Replay")
-    artifact -- 6 --> replay
-    replay -- 7 --> surface
-    replay -- 8 --> logs
-    replay -- risky confirmation or replay failure--> escalation["escalation"]
-    agent -- discovery stuck --> escalation
-    escalation -- 9 --> surface
-```
+![Flowchart](image.png)
 
 
 
