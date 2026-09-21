@@ -3,7 +3,7 @@
 ## 1. Architecture
 Based on the assignment specification, the system has two distinct flows of the execution: non-deterministic llm `agent` to generate `artifact`, and deterministic `replay` mechanism to use this the same artifact for reproduction. The system is restructured into independent modular components that gets used as shown in diagram below.
 
-![Flowchart](static/image.png)
+![Flowchart](./static/image.png)
 
 **Agent:** takes two parameters 
 
