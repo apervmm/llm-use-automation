@@ -3,7 +3,6 @@ __pycache__/
 *.pyc
 .env
 .pytest_cache/
-REPORT.md
 /src/scripts/*
 
 
