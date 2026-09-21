@@ -12,7 +12,10 @@ Based on the assignment specification, the system has to have two distinct flows
 ```
 
 
-**Replay:**
+**Replay:** Takes a saved artifact — loaded by capability ID from the artifacts/ store — and a set of input values supplied by the caller. It walks the artifact's steps in the recorded order, substituting each input into the step that expects it, and executes each step against the same kind of session the agent used. After the last step, it checks whether the artifact's declared condition for success actually holds on the page. 
+
+If it does, replay reports success along with whatever outputs the artifact declares. 
+If it doesn't, replay checks whether the page instead matches one of the artifact's declared business outcomes (e.g. a rejection or a not-found result) before concluding it's a real failure. An unrecoverable failure, or a step marked risky without prior confirmation, can also trigger a handoff to a human mid-replay.
 
 **Surfave:** 
 
