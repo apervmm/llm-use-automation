@@ -1,7 +1,34 @@
 
 
 ## 1. Architecture
-*your architecture and the key decisions plus trade-offs*
+Based on the assignment specification, the system has two distinct flows of the execution: non-deterministic llm `agent` to generate `artifact`, and deterministic `replay` mechanism to use this the same artifact for reproduction. The system is restructured into independent modular components that gets used as shown in diagram below.
+
+**Agent:** takes two parameters 
+
+
+### Flowchart
+```mermaid
+---
+config:
+  theme: dark
+  layout: fixed
+---
+flowchart TB
+    cli("CLI") -- 1 --> agent("Agent")
+    agent -- 2 --> surface["surface"]
+    agent -- 3 --> artifact["artifact"]
+    safety["safety"] -- risk level --> artifact
+    agent -- 4 --> logs["logs"]
+    cli -- 5 --> replay("Replay")
+    artifact -- 6 --> replay
+    replay -- 7 --> surface
+    replay -- 8 --> logs
+    replay -- risky confirmation or replay failure--> escalation["escalation"]
+    agent -- discovery stuck --> escalation
+    escalation -- 9 --> surface
+```
+
+
 
 
 
