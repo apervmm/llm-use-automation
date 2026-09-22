@@ -43,10 +43,13 @@ The main artifact is `Capability`, which is a versioned and typed schema that co
 
 ```
 class Capability(BaseModel):
+    # Identity/Version Control
     capability_id: str                     
     version: int = 1
     description: str = ""
     target_app: str = "parabank"
+
+    
     entry_url: str
 
     inputs: list[InputParam] = Field(default_factory=list)
@@ -105,7 +108,8 @@ artifact schema rather than as a first-class field on it.
 
 
 
-<img width="960" height="900" alt="image" src="https://github.com/user-attachments/assets/c7a57868-cf75-49d2-8cca-a571a5a06aac" />
+<img width="529" height="551" alt="image" src="https://github.com/user-attachments/assets/f6fb6c15-b250-49b0-8846-5eb83b37cc40" />
+
 
 
 
