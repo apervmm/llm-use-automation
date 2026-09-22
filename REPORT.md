@@ -73,26 +73,26 @@ class Capability(BaseModel):
     fallback chain) that already worked live during discovery, rather
     than re-deriving a locator at replay time. The artifact freezes
     what was proven to work.
-  - `Step.value` holds either a literal or a `"{param}"` placeholder.
+- `Step.value` holds either a literal or a `"{param}"` placeholder.
     Parameterization is explicit and human-driven — a `param_map`
     supplied at recording time — not inferred automatically, trading a
     manual step for a reviewable one.
-  - `OutputField.derived_from_outcome` lets one output type cover two
+- `OutputField.derived_from_outcome` lets one output type cover two
     cases: a value read directly off the page (`derived_from_outcome=False`),
     or a value inferred from which `outcome_rule` matched
     (`derived_from_outcome=True`, e.g. `loan_status`) — avoiding a
     second output type for what is still fundamentally one named value.
-  - `checkpoint` and `outcome_rules` are deliberately split rather than
+- `checkpoint` and `outcome_rules` are deliberately split rather than
     folded into one field: `checkpoint` is the single condition
     defining success, checked first; `outcome_rules` is a closed,
     named set of legitimate non-success results (e.g.
     `insufficient_funds`), checked only if the checkpoint is missed.
     This makes the business-outcome-vs-failure distinction structural,
     not something replay logic has to infer per capability.
-  - `InputParam.example` is redacted at record time
+- `InputParam.example` is redacted at record time
     (`"[REDACTED]"`) for any field named `password`/`pin`/`ssn`, so a
     sensitive value never lands in a saved artifact even as a sample.
-  - `InputParam.required` isn't decorative — `executor.py` checks it
+- `InputParam.required` isn't decorative — `executor.py` checks it
     before replay runs, failing fast if a required input is missing
     rather than letting a partial run start.
 
