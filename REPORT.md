@@ -12,7 +12,6 @@ Based on the assignment specification, the system has to have two distinct flows
 3. 3 consecutive failed actions occur — also escalates to a human
 ```
 
-
 **Replay:** Takes a saved artifact — loaded by capability ID from the `/artifacts/` store — and a set of input values supplied by the caller at invocation time `--input` flag. It walks the artifact's steps in the recorded order, substituting each input into the step that expects it, and executes each step against the same kind of session the agent used. After the last step, it checks whether the artifact's declared condition for success actually holds on the page. 
 
 If it does, replay reports success along with whatever outputs the artifact declares. 
@@ -22,7 +21,7 @@ If it doesn't, replay checks whether the page instead matches one of the artifac
 
 It provides a `snapshot()` for agent that constructs a `pageState`, which consist of the `interactive elements`, `visible text` and a `screenshot` of the page to work on. 
 
-
+**CLI:** is an orchestrator layer that brings `surface`, `artifacts`, `agent`, and `replay` together.
 
 
 ## 2. Artifact schema
