@@ -176,7 +176,7 @@ class Capability(BaseModel):
 ## 7. Cuts
 *what you deliberately left out, and what you'd build next
 
-**Output extraction falls back to a name-pattern heuristic instead of
+1. **Output extraction falls back to a name-pattern heuristic instead of
 an explicit rule.** In `_extract_outputs()`, if an output isn't
 `derived_from_outcome` and wasn't captured by a live `read` step, the
 system guesses its value by checking whether the field's name contains
@@ -198,3 +198,17 @@ This was cut because both current capabilities work under the
 existing heuristic and building a small declarative mini-language for
 output sourcing wasn't worth the time against two capabilities — but
 it's the first thing I'd fix before adding a third.*
+
+
+2. **`derived_from_outcome` is a workaround I'd remove, but only after
+fixing plain-text reads.** It duplicates information already on
+`ReplayResult` (`status`/`outcome_name`), so on its own it looks like
+dead weight. But testing its removal exposed why it's still there:
+`loan_status` falls back to a live `read` step, and reading a value
+that sits next to a label in plain page text (not inside a clickable
+element) isn't generally solved — a `following-sibling`-style fix
+works for this specific page's layout, but silently returns the wrong
+text (the label, not the value) on markup it wasn't built for. The
+right sequence is: make plain-text reads reliable first, confirm
+`loan_status` reads correctly across cases, then remove the redundant
+field — not the other way around.
