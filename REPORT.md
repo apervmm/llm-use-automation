@@ -68,11 +68,35 @@ class Capability(BaseModel):
 - **Entry Point:** `entry_url` is where replay begins — the browser navigates here before the first step executes. Kept separate from `steps[]` because it isn't an action so much as a precondition for step 1 to make sense.
 
 - **Behavioral Contract:** is a tracable actions of discovery runs that consists of `inputs`, `outputs`, `steps`, `checkpoint`, and `outcome_rules`, where they together define what actually happens when a capability runs and how its result is judged.
-  - `Input` 
-  - `Output`
-  - `Steps` 
-  - `Checkpoint` 
-  - `Outcome Rules`
+  - `inputs`: values supplied at replay time (e.g. `username`, `password`). Kept explicit rather than inferred, so a human decides what's parameterized — and sensitive examples (password/pin/ssn) are redacted before saving.
+    ```
+    class InputParam(BaseModel):
+        name: str                         
+        description: str = ""
+        required: bool = True
+        example: Optional[str] = None
+    ```
+  - `outputs`: values a capability returns. Self-reported by the agent when it finishes, not re-verified by reading the page again — the system trusts the agent's own report of what happened.
+    ```
+    class OutputField(BaseModel):
+        name: str                         
+        # type: ParamType = ParamType.STRING
+        description: str = ""
+        source_label: str = ""    
+        derived_from_outcome: bool = False   
+    ```
+  - `steps`: the ordered actions to replay (click, type, navigate, select, read). Each step also stores exactly which element to act on — the same locator that worked live during discovery, reused as-is rather than recalculated at replay time.
+    ```
+    class Step(BaseModel):
+        step_num: int
+        action: StepAction
+        target: Optional[ElementRef] = None 
+        value: Optional[str] = None   
+        read_label: Optional[str] = None  # for READ steps, maps to an OutputField
+        description: str = ""
+    ```
+  - `checkpoint`: the single condition that defines success (e.g. the URL changed to a specific page). Checked first, before anything else, so "did this work?" has one clear answer.
+  - `outcome_rules`: named, expected non-success results (e.g. "invalid credentials"). Checked only if the checkpoint fails — this keeps a normal negative answer separate from an actual error.
 
 - **Metadata:** `created_at` is a plain recording timestamp, useful for reading evidence logs and telling artifact versions apart chronologically.
 
