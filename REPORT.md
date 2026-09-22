@@ -80,7 +80,6 @@ class Capability(BaseModel):
     ```
     class OutputField(BaseModel):
         name: str                         
-        # type: ParamType = ParamType.STRING
         description: str = ""
         source_label: str = ""    
         derived_from_outcome: bool = False   
@@ -116,8 +115,20 @@ class Capability(BaseModel):
         logging/description purposes — despite the code comment, it isn't
         actually linked to an `OutputField` in the codebase yet.
       - `description`: a plain-English summary of the step like "click" or "login", generated automatically for readability when someone inspects the saved artifact.
-  - `checkpoint`: the single condition that defines success (e.g. the URL changed to a specific page). Checked first, before anything else, so "did this work?" has one clear answer.
-  - `outcome_rules`: named, expected non-success results (e.g. "invalid credentials"). Checked only if the checkpoint fails — this keeps a normal negative answer separate from an actual error.
+  - `checkpoint`: the single condition that defines success, where `kind` is what to inspect and `expected` is what value to expect.
+    ```
+    class Checkpoint(BaseModel):
+        kind: Literal["url_contains", "element_visible", "text_visible"]
+        expected: str      
+    ```
+  - `outcome_rule`: named, expected non-success results. Checked only if the checkpoint fails — this keeps a normal negative answer separate from an actual error.
+    ```
+    class OutcomeRule(BaseModel):
+        name: str   
+        kind: Literal["text_visible", "url_contains"]
+        expected: str
+        description: str = ""   
+    ```
 
 - **Metadata:** `created_at` is a plain recording timestamp, useful for reading evidence logs and telling artifact versions apart chronologically.
 
@@ -159,4 +170,27 @@ class Capability(BaseModel):
 
 
 ## 7. Cuts
-*what you deliberately left out, and what you'd build next*
+*what you deliberately left out, and what you'd build next
+
+**Output extraction falls back to a name-pattern heuristic instead of
+an explicit rule.** In `_extract_outputs()`, if an output isn't
+`derived_from_outcome` and wasn't captured by a live `read` step, the
+system guesses its value by checking whether the field's name contains
+"succeed" or "success" (defaulting to `"true"` if so, `None`
+otherwise). This works for the two capabilities in this project only
+because their output names happen to match that pattern
+(`login_succeeded`). It's fragile by construction: renaming that field
+to `logged_in`, or adding an output like `account_verified`, would
+silently return `None` instead of failing loudly — a naming
+coincidence is doing the job a real declaration should. The correct
+fix is to make the source explicit in the capability config rather
+than inferred from a string match, e.g.:
+
+    outputs:
+      login_succeeded: { from: status }   # true on SUCCESS, false otherwise
+      message: { from_read: message }     # pulled from a read step's value
+
+This was cut because both current capabilities work under the
+existing heuristic and building a small declarative mini-language for
+output sourcing wasn't worth the time against two capabilities — but
+it's the first thing I'd fix before adding a third.*
