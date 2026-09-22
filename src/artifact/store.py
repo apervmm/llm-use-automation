@@ -41,7 +41,7 @@ def save(capability: Capability) -> Path:
     if existing and capability.version <= max(existing):
         capability.version = max(existing) + 1
         
-    filename = f"{capability.capability_id}.v{capability.version}.json"
+    filename = f"{capability.target_app}.{capability.capability_id}.v{capability.version}.json"
     path = _safe_path(filename)
     path.write_text(capability.model_dump_json(indent=2))
     return path
