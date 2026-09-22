@@ -73,9 +73,13 @@ class Capability(BaseModel):
 
 - **Safety Classifier:** `risk_level` is computed automatically at record time from `allowlist.yaml`'s risky-capability patterns rather than set by hand, so a capability can't silently be recorded as `safe` by omission. It gates whether `replay()` requires `confirmed=True`.
 
-<p align="center">
+<!-- <p align="center">
     <img width="529" height="551" alt="image" src="https://github.com/user-attachments/assets/f6fb6c15-b250-49b0-8846-5eb83b37cc40" />
-</p>
+    <br>
+    <em>Conceptual data model — actual storage is one nested JSON file
+    per capability version (see store.py), not a relational database.
+    This diagram shows entity relationships only.</em>
+</p> -->
 
 
 - **Additional Features**
