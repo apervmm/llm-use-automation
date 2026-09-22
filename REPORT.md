@@ -74,14 +74,13 @@ class Capability(BaseModel):
 - **Safety Classifier:** `risk_level` is computed automatically at record time from `allowlist.yaml`'s risky-capability patterns rather than set by hand, so a capability can't silently be recorded as `safe` by omission. It gates whether `replay()` requires `confirmed=True`.
 
 
-- **Additional Featured**
->Dependency composition: A capability that depends on another (e.g. `parabank.request_loan` needs `parabank.login` first) doesn't embed the dependency's steps. Instead, the capability's *recording config* (a separate YAML, not the artifact itself) names an `auth_capability_id`, which the CLI replays first.his keeps each saved `Capability` single-purpose and independently replayable, at the cost of that dependency being declared outside the artifact schema.
+- **Additional Features**
+  1. A capability that depends on another (e.g. `parabank.request_loan` needs `parabank.login` first) doesn't embed the dependency's steps. Instead, the capability's *recording config* (a separate YAML, not the artifact itself) names an `auth_capability_id`, which the CLI replays first. This keeps each saved `Capability` single-purpose and independently replayable, at the cost of that dependency being declared outside the artifact schema.
 
 
-
-<img width="529" height="551" alt="image" src="https://github.com/user-attachments/assets/f6fb6c15-b250-49b0-8846-5eb83b37cc40" />
-
-
+<p align="center">
+    <img width="529" height="551" alt="image" src="https://github.com/user-attachments/assets/f6fb6c15-b250-49b0-8846-5eb83b37cc40" />
+</p>
 
 
 ## 3. Determinism & error handling
