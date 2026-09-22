@@ -254,4 +254,10 @@ class AgentLoop:
         parts.append(f"Current URL: {state.url}\nPage title: {state.title}")
         parts.append(f"Interactive elements:\n{elements}")
         parts.append(f"Visible text (truncated): {state.visible_text_summary[:500]}")
-        return "\n\n".join(parts)
+        result = "\n\n".join(parts)
+
+        print({"------OBSERVATION------"})
+        print(result)
+        print("-----------------------")
+
+        return result

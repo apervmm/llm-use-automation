@@ -22,20 +22,6 @@ class BrowserSession:
         self.close()
 
 
-    # navigation
-    def goto(self, url: str) -> ActionResult:
-        start = time.time()
-        try:
-            self.allowlist.check_action("navigate", url=url)
-            self.page.goto(url, wait_until="domcontentloaded", timeout=15000)
-            self.allowlist._check_url(self.page.url)
-            return ActionResult(True, "navigate",  url, duration_ms=int((time.time() - start) * 1000))
-        except PWTimeout as e:
-            return ActionResult(False, "navigate", url, error=str(e))
-        except PolicyViolation as e:
-            return ActionResult(False, "navigate", url, error=str(e))
-
-
     def _diagnose_select_failure(self, loc, value: str) -> str:
         try:
             # loc = self.page.locator(ref.value).firsts
@@ -108,6 +94,25 @@ class BrowserSession:
             return self.page.locator(f"xpath={ref.value}").first
         raise ValueError(f"Unknown strategy {ref.strategy}")
     
+    def get_visible_text(self) -> str:
+        return self.page.inner_text("body")
+    
+    def get_url(self) -> str:
+        return self.page.url
+    
+    # navigation
+    def goto(self, url: str) -> ActionResult:
+        start = time.time()
+        try:
+            self.allowlist.check_action("navigate", url=url)
+            self.page.goto(url, wait_until="domcontentloaded", timeout=15000)
+            self.allowlist._check_url(self.page.url)
+            return ActionResult(True, "navigate",  url, duration_ms=int((time.time() - start) * 1000))
+        except PWTimeout as e:
+            return ActionResult(False, "navigate", url, error=str(e))
+        except PolicyViolation as e:
+            return ActionResult(False, "navigate", url, error=str(e))
+        
 
     def read_text(self, ref: ElementRef, description: str = "") -> ActionResult:
         try:
@@ -137,6 +142,7 @@ class BrowserSession:
             return ActionResult(True, "click", description or ref.value, duration_ms=int((time.time() - start) * 1000))
         except Exception as e:
             return ActionResult(False, "click", description or ref.value, error=str(e))
+        
         
     def select_option(self, ref: ElementRef, value: str, description: str = "") -> ActionResult:
         # loc = self._resolve(ref) 

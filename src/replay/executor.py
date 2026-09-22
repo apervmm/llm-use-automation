@@ -1,6 +1,5 @@
 import re
 from surface.browser import BrowserSession
-from surface.perception import snapshot
 from artifact.schema import Capability, StepAction, Checkpoint, OutcomeRule, RiskLevel
 from escalation.handoff import raise_escalation, EscalationReason, HandoffState, OperatorDecision
 from .outcomes import ReplayResult, ReplayStatus
@@ -214,7 +213,7 @@ def replay(
             capability_id=capability.capability_id,
             failed_step=capability.steps[-1].step_num if capability.steps else None,
             expected=f"{capability.checkpoint.kind}={capability.checkpoint.expected}",
-            observed=session.page.url,
+            observed=session.get_url(),
             error="Checkpoint not met and no matching business outcome found.",
             escalations=escalations,
         )
@@ -257,11 +256,11 @@ def _substitute(template: str, inputs: dict) -> str:
 
 def _check_outcomes(session: BrowserSession, rules: list[OutcomeRule]) -> str | None:
     session.page.wait_for_timeout(500)
-    page_text = session.page.inner_text("body")
+    page_text = session.get_visible_text()
     for rule in rules:
         if rule.kind == "text_visible" and rule.expected in page_text:
             return rule.name
-        if rule.kind == "url_contains" and rule.expected in session.page.url:
+        if rule.kind == "url_contains" and rule.expected in session.get_url():
             return rule.name
     return None
 
@@ -338,7 +337,7 @@ def _try_extract_account_context(session: BrowserSession, inputs: dict) -> str:
     if not account_id:
         return ""
     try:
-        text = session.page.inner_text("body")
+        text = session.get_visible_text()
         for line in text.splitlines():
             if account_id in line:
                 return f" Current state of account {account_id} shown on this page: \"{line.strip()}\""

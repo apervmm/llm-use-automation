@@ -15,6 +15,9 @@ _ROLE_TO_ELEMENT_TYPE = {
 
 
 def snapshot(session: BrowserSession, screenshot_path: str | None = None) -> PageState:
+    """
+    builds a PageState = the interactive elements list + visible text + a screenshot
+    """
     page = session.page
     raw_elements = page.evaluate(_EXTRACT_JS)
 
