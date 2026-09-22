@@ -24,9 +24,11 @@ It provides a `snapshot()` for agent that constructs a `pageState`, which consis
 **CLI:** is an orchestrator layer that brings `surface`, `artifacts`, `agent`, and `replay` together.
 
 
+
 ## 2. Artifact schema
 *the schema and why you shaped it that way.*
 
+![Schema](./static/schema.png)
 
 
 ## 3. Determinism & error handling
