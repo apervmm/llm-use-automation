@@ -76,7 +76,7 @@ class Capability(BaseModel):
         required: bool = True
         example: Optional[str] = None
     ```
-  - `outputs`: values a capability returns. Self-reported by the agent when it finishes, not re-verified by reading the page again — the system trusts the agent's own report of what happened.
+  - `outputs`: the actual data a capability hands back (confirmation message, success status). How a value is produced differs by when it happens. During discovery, the agent self-reports these values itself when it finishes. During replay, values come from `_extract_outputs()` instead, using each field below.
     ```
     class OutputField(BaseModel):
         name: str                         
@@ -84,6 +84,10 @@ class Capability(BaseModel):
         source_label: str = ""    
         derived_from_outcome: bool = False   
     ```
+    - `source_label`: which live `read` step this value should come from
+    during replay, matched against that step's `read_label`. If no
+    read step matches, the value falls back to a name-pattern guess
+    (see Section 7, Cuts) or `None`.
   - `steps`: the ordered actions to replay.
     ```
     class StepAction(str, Enum):
