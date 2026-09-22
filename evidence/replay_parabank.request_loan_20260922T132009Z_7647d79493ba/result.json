@@ -1,7 +1,7 @@
 {
   "run_type": "replay",
-  "run_id": "e3f231a7643d",
-  "timestamp": "20260922T094307Z",
+  "run_id": "7647d79493ba",
+  "timestamp": "20260922T132028Z",
   "inputs": {
     "amount": "1000",
     "down_payment": "10",
@@ -12,9 +12,9 @@
   "outputs": {},
   "outcome_name": null,
   "failed_step": 3,
-  "expected": "Select '12345' in 'From account #:'",
+  "expected": "Select '13011' in 'From account #:'",
   "observed": "Couldn't inspect the dropdown: AttributeError: 'ElementRef' object has no attribute 'locator' | raw error: TimeoutError: Locator.select_option: Timeout 5000ms exceeded.\nCall log:\n  - waiting for locator(\"#fromAccountId\").first\n    - locator resolved to <select class=\"input\" id=\"fromAccountId\">\u2026</select>\n  - attempting select option action\n    2 \u00d7 waiting for element to be visible and enabled\n      - did not find some options\n    - retrying select option action\n    - waiting 20ms\n    2 \u00d7 waiting for element to be visible and enabled\n      - did not find some options\n    - retrying select option action\n      - waiting 100ms\n    10 \u00d7 waiting for element to be visible and enabled\n       - did not find some options\n     - retrying select option action\n       - waiting 500ms\n",
-  "error": "Step 3 (select_option) failed even after operator intervention: Couldn't inspect the dropdown: AttributeError: 'ElementRef' object has no attribute 'locator' | raw error: TimeoutError: Locator.select_option: Timeout 5000ms exceeded.\nCall log:\n  - waiting for locator(\"#fromAccountId\").first\n    - locator resolved to <select class=\"input\" id=\"fromAccountId\">\u2026</select>\n  - attempting select option action\n    2 \u00d7 waiting for element to be visible and enabled\n      - did not find some options\n    - retrying select option action\n    - waiting 20ms\n    2 \u00d7 waiting for element to be visible and enabled\n      - did not find some options\n    - retrying select option action\n      - waiting 100ms\n    10 \u00d7 waiting for element to be visible and enabled\n       - did not find some options\n     - retrying select option action\n       - waiting 500ms\n",
+  "error": "Step 3 (select_option) failed: Couldn't inspect the dropdown: AttributeError: 'ElementRef' object has no attribute 'locator' | raw error: TimeoutError: Locator.select_option: Timeout 5000ms exceeded.\nCall log:\n  - waiting for locator(\"#fromAccountId\").first\n    - locator resolved to <select class=\"input\" id=\"fromAccountId\">\u2026</select>\n  - attempting select option action\n    2 \u00d7 waiting for element to be visible and enabled\n      - did not find some options\n    - retrying select option action\n    - waiting 20ms\n    2 \u00d7 waiting for element to be visible and enabled\n      - did not find some options\n    - retrying select option action\n      - waiting 100ms\n    10 \u00d7 waiting for element to be visible and enabled\n       - did not find some options\n     - retrying select option action\n       - waiting 500ms\n",
   "escalations": [
     {
       "reason": "risky_confirmation",
@@ -22,11 +22,11 @@
       "current_step": null,
       "current_url": "http://localhost:8080/parabank/overview.htm",
       "detail": "This will submit a NEW loan application with: amount=1000, down_payment=10, from_account_id=99999.",
-      "screenshot_path": "evidence/replay_parabank.request_loan_20260922T094239Z_e3f231a7643d/escalation_a75e9e6af4b545b28a630a7003895da6.png",
-      "timestamp": "2026-09-22T09:42:40.170971+00:00",
+      "screenshot_path": "evidence/replay_parabank.request_loan_20260922T132009Z_7647d79493ba/escalation_f77f67f2156e400ea96ea85c35570794.png",
+      "timestamp": "2026-09-22T13:20:10.875919+00:00",
       "operator_decision": "resume",
       "human_actions": [
-        "approving a loan"
+        "approve loan"
       ]
     },
     {
@@ -35,12 +35,10 @@
       "current_step": 3,
       "current_url": "http://localhost:8080/parabank/requestloan.htm",
       "detail": "Step 3 (select_option) failed: Couldn't inspect the dropdown: AttributeError: 'ElementRef' object has no attribute 'locator' | raw error: TimeoutError: Locator.select_option: Timeout 5000ms exceeded.\nCall log:\n  - waiting for locator(\"#fromAccountId\").first\n    - locator resolved to <select class=\"input\" id=\"fromAccountId\">\u2026</select>\n  - attempting select option action\n    2 \u00d7 waiting for element to be visible and enabled\n      - did not find some options\n    - retrying select option action\n    - waiting 20ms\n    2 \u00d7 waiting for element to be visible and enabled\n      - did not find some options\n    - retrying select option action\n      - waiting 100ms\n    10 \u00d7 waiting for element to be visible and enabled\n       - did not find some options\n     - retrying select option action\n       - waiting 500ms\n",
-      "screenshot_path": "evidence/escalations/escalation_aca7ae08222a47ffa6b599361fcbabbf.png",
-      "timestamp": "2026-09-22T09:42:50.955412+00:00",
-      "operator_decision": "resume",
-      "human_actions": [
-        "trying again"
-      ]
+      "screenshot_path": "evidence/escalations/escalation_ed1a47b5509a47fcb0cc36ec78aa6be2.png",
+      "timestamp": "2026-09-22T13:20:22.706904+00:00",
+      "operator_decision": "abort",
+      "human_actions": []
     }
   ]
 }

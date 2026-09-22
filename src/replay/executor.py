@@ -273,14 +273,14 @@ def _extract_outputs(
 ) -> dict:
     outputs = {}
     for field in capability.outputs:
-        if field.derived_from_outcome:
-            if status == ReplayStatus.SUCCESS:
-                outputs[field.name] = "Approved"
-            elif status == ReplayStatus.BUSINESS_OUTCOME:
-                outputs[field.name] = "Denied"
-            else:
-                outputs[field.name] = None
-        elif field.source_label in read_values:
+        # if field.derived_from_outcome:
+        #     if status == ReplayStatus.SUCCESS:
+        #         outputs[field.name] = "Approved"
+        #     elif status == ReplayStatus.BUSINESS_OUTCOME:
+        #         outputs[field.name] = "Denied"
+        #     else:
+        #         outputs[field.name] = None
+        if field.source_label in read_values:
             outputs[field.name] = read_values[field.source_label]
         elif "succeed" in field.name.lower() or "success" in field.name.lower():
             outputs[field.name] = "true"

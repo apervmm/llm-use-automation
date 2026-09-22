@@ -3,6 +3,7 @@ from typing import Literal, Optional
 from enum import Enum
 
 
+
 class LocatorStrategy(str, Enum):
     ROLE_NAME = "role_name"      
     CSS = "css"                 
@@ -54,6 +55,7 @@ class PageState:
 
         return None
     
+    
         # name_lower = name.strip().lower()
         # for el in self.interactive_elements:
         #     if el.accessible_name.strip().lower() == name_lower:
@@ -67,6 +69,12 @@ class PageState:
         # return None
 
 
+    # types.py — new method
+    # def find_text(self, label: str) -> Optional["ElementRef"]:
+    #     return ElementRef(strategy=LocatorStrategy.TEXT, value=label, expected_name=label)
+
+
+
 @dataclass
 class ActionResult:
     success: bool
@@ -75,3 +83,5 @@ class ActionResult:
     error: Optional[str] = None
     duration_ms: int = 0
     value: Optional[str] = None 
+
+
