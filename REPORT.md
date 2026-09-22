@@ -77,8 +77,6 @@ class Capability(BaseModel):
         example: Optional[str] = None
     ```
   - `outputs`: the actual data a capability hands back (confirmation message, success status). How a value is produced differs by when it happens. During discovery, the agent self-reports these values itself when it finishes. During replay, values come from `_extract_outputs()` instead, using each field below.
-
-    - `derived_from_outcome` is partially redundant — the same success/failure information is already available on `ReplayResult` as `status` and `outcome_name`. I considered removing it, but didn't: doing so makes `loan_status`'s value depend entirely on a live `read` of plain page text (`"Status: Approved"`), and reading a value that sits *next to* a label — rather than inside a clickable element — isn't reliable yet (see Cuts). Until that's solid, `derived_from_outcome` is kept deliberately, as a fallback that avoids depending on a read path that can still silently return the wrong thing.
     ```
     class OutputField(BaseModel):
         name: str                         
@@ -86,10 +84,22 @@ class Capability(BaseModel):
         source_label: str = ""    
         derived_from_outcome: bool = False   
     ```
-    - `source_label`: which live `read` step this value should come from
-    during replay, matched against that step's `read_label`. If no
-    read step matches, the value falls back to a name-pattern guess
-    (see Section 7, Cuts) or `None`.
+     - `name`: the key the caller sees in the result, e.g.
+    `login_succeeded`.
+    - `source_label`: which live `read` step this value comes from during
+        replay, matched against that step's `read_label`.
+    - `derived_from_outcome`: `true` means this value is set from whether
+        replay succeeded or hit a business outcome, instead of being read
+        from the page. This is partially redundant with `ReplayResult`'s
+        own `status`/`outcome_name` fields, and I considered removing it (See 7.Cuts)
+        but doing so makes fields like `loan_status` depend entirely on a
+        live `read` of plain page text, and reading a value sitting *next
+        to* a label (rather than inside a clickable element) isn't
+        reliable yet (see Cuts). Kept deliberately for now, as a fallback
+        that doesn't depend on a read path that can still silently return
+        the wrong thing.
+    - `description`: optional notes — not currently populated anywhere.
+
   - `steps`: the ordered actions to replay.
     ```
     class StepAction(str, Enum):

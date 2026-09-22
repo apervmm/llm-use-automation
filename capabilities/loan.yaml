@@ -1,5 +1,5 @@
 # capabilities/request_loan.yaml
-capability_id: parabank.request_loan
+capability_id: request_loan
 goal: >
   Apply for a loan with amount '1000' and down payment '10'.
   Select an account from the dropdown using select_option even if only

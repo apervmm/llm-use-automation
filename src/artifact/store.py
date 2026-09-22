@@ -36,8 +36,9 @@ def _existing_versions(capability_id: str) -> list[int]:
 
 def save(capability: Capability) -> Path:
     _validate_id(capability.capability_id)
-
-    existing = _existing_versions(capability.capability_id)
+    
+    prefix = f"{capability.target_app}.{capability.capability_id}" 
+    existing = _existing_versions(prefix)
     if existing and capability.version <= max(existing):
         capability.version = max(existing) + 1
         
