@@ -77,6 +77,8 @@ class Capability(BaseModel):
         example: Optional[str] = None
     ```
   - `outputs`: the actual data a capability hands back (confirmation message, success status). How a value is produced differs by when it happens. During discovery, the agent self-reports these values itself when it finishes. During replay, values come from `_extract_outputs()` instead, using each field below.
+
+    - `derived_from_outcome` is partially redundant — the same success/failure information is already available on `ReplayResult` as `status` and `outcome_name`. I considered removing it, but didn't: doing so makes `loan_status`'s value depend entirely on a live `read` of plain page text (`"Status: Approved"`), and reading a value that sits *next to* a label — rather than inside a clickable element — isn't reliable yet (see Cuts). Until that's solid, `derived_from_outcome` is kept deliberately, as a fallback that avoids depending on a read path that can still silently return the wrong thing.
     ```
     class OutputField(BaseModel):
         name: str                         
