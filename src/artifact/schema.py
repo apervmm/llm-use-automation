@@ -14,7 +14,7 @@ class ParamType(str, Enum):
 
 class InputParam(BaseModel):
     name: str                         
-    type: ParamType = ParamType.STRING
+    # type: ParamType = ParamType.STRING
     description: str = ""
     required: bool = True
     example: Optional[str] = None
@@ -22,7 +22,7 @@ class InputParam(BaseModel):
 
 class OutputField(BaseModel):
     name: str                         
-    type: ParamType = ParamType.STRING
+    # type: ParamType = ParamType.STRING
     description: str = ""
     source_label: str = ""    
     derived_from_outcome: bool = False         
@@ -73,7 +73,7 @@ class Capability(BaseModel):
     checkpoint: Optional[Checkpoint] = None
 
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    source: Literal["llm_discovery"] = "llm_discovery"
+    # source: Literal["llm_discovery"] = "llm_discovery"
     outcome_rules: list[OutcomeRule] = Field(default_factory=list)
 
     risk_level: RiskLevel = RiskLevel.SAFE

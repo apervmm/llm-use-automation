@@ -24,7 +24,7 @@
       "type": "string",
       "description": "",
       "required": true,
-      "example": "12567"
+      "example": "12345"
     }
   ],
   "outputs": [
@@ -108,7 +108,7 @@
       },
       "value": "{from_account_id}",
       "read_label": null,
-      "description": "Select '12567' in 'From account #:'"
+      "description": "Select '12345' in 'From account #:'"
     },
     {
       "step_num": 4,
@@ -181,8 +181,7 @@
     "kind": "text_visible",
     "expected": "Congratulations, your loan has been approved."
   },
-  "created_at": "2026-09-20T13:32:42.509010+00:00",
-  "source": "llm_discovery",
+  "created_at": "2026-09-22T09:38:26.198094+00:00",
   "outcome_rules": [
     {
       "name": "insufficient_funds_for_down_payment",

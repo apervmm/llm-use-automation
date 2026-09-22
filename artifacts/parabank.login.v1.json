@@ -10,7 +10,7 @@
       "type": "string",
       "description": "",
       "required": true,
-      "example": "john"
+      "example": "${PARABANK_USERNAME}"
     },
     {
       "name": "password",
@@ -55,7 +55,7 @@
           }
         ]
       },
-      "value": "{username}",
+      "value": "john",
       "read_label": null,
       "description": "Type into 'Username'"
     },
@@ -77,7 +77,7 @@
           }
         ]
       },
-      "value": "{password}",
+      "value": "demo",
       "read_label": null,
       "description": "Type into 'Password'"
     },
@@ -115,8 +115,7 @@
     "kind": "url_contains",
     "expected": "/overview.htm"
   },
-  "created_at": "2026-09-20T13:32:17.231415+00:00",
-  "source": "llm_discovery",
+  "created_at": "2026-09-22T09:37:57.888238+00:00",
   "outcome_rules": [
     {
       "name": "invalid_credentials",
