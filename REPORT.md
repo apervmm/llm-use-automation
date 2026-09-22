@@ -21,6 +21,16 @@ If it doesn't, replay checks whether the page instead matches one of the artifac
 
 It provides a `snapshot()` for agent that constructs a `pageState`, which consist of the `interactive elements`, `visible text` and a `screenshot` of the page to work on. 
 
+```
+@dataclass
+class PageState:
+    url: str
+    title: str
+    interactive_elements: list[InteractiveElement]
+    visible_text_summary: str
+    screenshot_path: Optional[str] = None
+```
+
 **CLI:** is an orchestrator layer that brings `surface`, `artifacts`, `agent`, and `replay` together.
 
 
