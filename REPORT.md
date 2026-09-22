@@ -36,7 +36,8 @@ class PageState:
 
 
 ## 2. Artifact schema
-*the schema and why you shaped it that way.*
+
+The main artifact is `Capability`, which is a versioned and typed schema that consists of 13 fields:
 
 ```
 class Capability(BaseModel):
@@ -57,6 +58,50 @@ class Capability(BaseModel):
 
     risk_level: RiskLevel = RiskLevel.SAFE
 ```
+
+Each `Step.target` is an `ElementRef` — the same locator structure
+(CSS primary, role/text/XPath fallbacks) already resolved live during
+discovery. The artifact freezes what was proven to work rather than
+re-deriving targeting logic at replay time.
+
+Parameterization is explicit, not inferred: a human-supplied
+`param_map` (literal → name) turns concrete values like `"john"` into
+placeholders like `"{username}"` when a capability is recorded. The
+same applies to a value chosen mid-run from a dropdown (`select_param`
+in the recording config) — whatever the agent actually selected becomes
+the parameterized value, rather than a value assumed in advance.
+
+Outputs come in two forms sharing one `OutputField` type:
+`derived_from_outcome=False` outputs are lifted from a recorded `read`
+step, while `derived_from_outcome=True` outputs (e.g. `loan_status`)
+are inferred from which `OutcomeRule` matched — avoiding a second output
+type for something that is still fundamentally "one named value."
+
+`checkpoint` and `outcome_rules` are deliberately split: checkpoint is
+the single definition of success, checked first; outcome_rules is a
+closed, named set of alternate legitimate results (e.g.
+"insufficient_funds"), checked only if the checkpoint is missed. This
+keeps the business-outcome-vs-failure distinction structural rather
+than something the replay logic has to infer per capability.
+
+`risk_level` is computed automatically at record time from
+`allowlist.yaml`'s risky-capability patterns, rather than set by hand —
+so a capability can't accidentally be recorded as `safe` by omission.
+
+Artifacts are versioned by filename (`<capability_id>.v<N>.json`),
+auto-incremented by `store.save()`, so re-recording a changed flow
+produces a new, inspectable version rather than overwriting history.
+
+**Design choice — composition lives outside the schema.** A capability
+that depends on another (e.g. `parabank.request_loan` needs
+`parabank.login` first) doesn't embed the dependency's steps. Instead,
+the capability's *recording config* (a separate YAML, not the artifact
+itself) names an `auth_capability_id`, which the CLI replays first.
+This keeps each saved `Capability` single-purpose and independently
+replayable, at the cost of that dependency being declared outside the
+artifact schema rather than as a first-class field on it.
+
+
 
 ![Schema](./static/schema.png)
 
