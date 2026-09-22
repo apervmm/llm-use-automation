@@ -94,6 +94,13 @@ class Capability(BaseModel):
         value: Optional[str] = None   
         read_label: Optional[str] = None  # for READ steps, maps to an OutputField
         description: str = ""
+
+    class StepAction(str, Enum):
+        CLICK = "click"
+        TYPE_TEXT = "type_text"
+        NAVIGATE = "navigate"
+        READ = "read"
+        SELECT_OPTION = "select_option"
     ```
   - `checkpoint`: the single condition that defines success (e.g. the URL changed to a specific page). Checked first, before anything else, so "did this work?" has one clear answer.
   - `outcome_rules`: named, expected non-success results (e.g. "invalid credentials"). Checked only if the checkpoint fails — this keeps a normal negative answer separate from an actual error.
