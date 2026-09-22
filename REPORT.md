@@ -69,6 +69,33 @@ class Capability(BaseModel):
 
 - **Behavioral Contract:** is a tracable actions of discovery runs that consists of `inputs`, `outputs`, `steps`, `checkpoint`, and `outcome_rules`, where they together define what actually happens when a capability runs and how its result is judged.
 
+- `Step.target` reuses the exact `ElementRef` (locator strategy +
+    fallback chain) that already worked live during discovery, rather
+    than re-deriving a locator at replay time. The artifact freezes
+    what was proven to work.
+  - `Step.value` holds either a literal or a `"{param}"` placeholder.
+    Parameterization is explicit and human-driven — a `param_map`
+    supplied at recording time — not inferred automatically, trading a
+    manual step for a reviewable one.
+  - `OutputField.derived_from_outcome` lets one output type cover two
+    cases: a value read directly off the page (`derived_from_outcome=False`),
+    or a value inferred from which `outcome_rule` matched
+    (`derived_from_outcome=True`, e.g. `loan_status`) — avoiding a
+    second output type for what is still fundamentally one named value.
+  - `checkpoint` and `outcome_rules` are deliberately split rather than
+    folded into one field: `checkpoint` is the single condition
+    defining success, checked first; `outcome_rules` is a closed,
+    named set of legitimate non-success results (e.g.
+    `insufficient_funds`), checked only if the checkpoint is missed.
+    This makes the business-outcome-vs-failure distinction structural,
+    not something replay logic has to infer per capability.
+  - `InputParam.example` is redacted at record time
+    (`"[REDACTED]"`) for any field named `password`/`pin`/`ssn`, so a
+    sensitive value never lands in a saved artifact even as a sample.
+  - `InputParam.required` isn't decorative — `executor.py` checks it
+    before replay runs, failing fast if a required input is missing
+    rather than letting a partial run start.
+
 - **Metadata:** `created_at` is a plain recording timestamp, useful for reading evidence logs and telling artifact versions apart chronologically.
 
 - **Safety Classifier:** `risk_level` is computed automatically at record time from `allowlist.yaml`'s risky-capability patterns rather than set by hand, so a capability can't silently be recorded as `safe` by omission. It gates whether `replay()` requires `confirmed=True`.
