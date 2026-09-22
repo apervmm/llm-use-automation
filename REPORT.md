@@ -39,7 +39,7 @@ class PageState:
 
 ## 2. Artifact schema
 
-The main artifact is `Capability`, which is a versioned and typed schema that consists of 13 fields:
+The main artifact is `Capability`, which is a versioned and typed schema that consists of 12 fields for 5 groups of reasons:
 
 ```
 class Capability(BaseModel):
@@ -49,62 +49,39 @@ class Capability(BaseModel):
     description: str = ""
     target_app: str = "parabank"
 
-    
+    # Entry Point
     entry_url: str
 
+    # Behavioral Contract
     inputs: list[InputParam] = Field(default_factory=list)
     outputs: list[OutputField] = Field(default_factory=list)
     steps: list[Step] = Field(default_factory=list)
     checkpoint: Optional[Checkpoint] = None
-
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    source: Literal["llm_discovery"] = "llm_discovery"
     outcome_rules: list[OutcomeRule] = Field(default_factory=list)
 
+    # Metadata
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    
+    # Safety Classifier
     risk_level: RiskLevel = RiskLevel.SAFE
 ```
 
-Each `Step.target` is an `ElementRef` — the same locator structure
-(CSS primary, role/text/XPath fallbacks) already resolved live during
-discovery. The artifact freezes what was proven to work rather than
-re-deriving targeting logic at replay time.
+**Identity/Version Control:** is used specifically for versioning and grouping artifact schemas populated by discovery runs, it consist of the unique `capability_id`. The `version` is not set by hand — `store.save()` auto-increments it against existing files on disk. The `description` is populated automatically from the discovery goal, giving a human-readable summary. The `target_app` is currently fixed to `"parabank"` — it isn't wired into any logic yet, since this project targets one app, but it's the natural field multi-tenant reuse for different products.
 
-Parameterization is explicit, not inferred: a human-supplied
-`param_map` (literal → name) turns concrete values like `"john"` into
-placeholders like `"{username}"` when a capability is recorded. The
-same applies to a value chosen mid-run from a dropdown (`select_param`
-in the recording config) — whatever the agent actually selected becomes
-the parameterized value, rather than a value assumed in advance.
+So the path for the versioned artifact would look like this:
+>`<target_app>.<capability_id>.v<N>.json`
 
-Outputs come in two forms sharing one `OutputField` type:
-`derived_from_outcome=False` outputs are lifted from a recorded `read`
-step, while `derived_from_outcome=True` outputs (e.g. `loan_status`)
-are inferred from which `OutcomeRule` matched — avoiding a second output
-type for something that is still fundamentally "one named value."
+**Entry Point:** `entry_url` is where replay begins — the browser navigates here before the first step executes. Kept separate from `steps[]` because it isn't an action so much as a precondition for step 1 to make sense.
 
-`checkpoint` and `outcome_rules` are deliberately split: checkpoint is
-the single definition of success, checked first; outcome_rules is a
-closed, named set of alternate legitimate results (e.g.
-"insufficient_funds"), checked only if the checkpoint is missed. This
-keeps the business-outcome-vs-failure distinction structural rather
-than something the replay logic has to infer per capability.
+**Behavioral Contract:** is a tracable actions of discovery runs that consists of `inputs`, `outputs`, `steps`, `checkpoint`, and `outcome_rules`, where they together define what actually happens when a capability runs and how its result is judged.
 
-`risk_level` is computed automatically at record time from
-`allowlist.yaml`'s risky-capability patterns, rather than set by hand —
-so a capability can't accidentally be recorded as `safe` by omission.
+**Metadata:** `created_at` is a plain recording timestamp, useful for reading evidence logs and telling artifact versions apart chronologically.
 
-Artifacts are versioned by filename (`<capability_id>.v<N>.json`),
-auto-incremented by `store.save()`, so re-recording a changed flow
-produces a new, inspectable version rather than overwriting history.
+**Safety Classifier:** `risk_level` is computed automatically at record time from `allowlist.yaml`'s risky-capability patterns rather than set by hand, so a capability can't silently be recorded as `safe` by omission. It gates whether `replay()` requires `confirmed=True`.
 
-**Design choice — composition lives outside the schema.** A capability
-that depends on another (e.g. `parabank.request_loan` needs
-`parabank.login` first) doesn't embed the dependency's steps. Instead,
-the capability's *recording config* (a separate YAML, not the artifact
-itself) names an `auth_capability_id`, which the CLI replays first.
-This keeps each saved `Capability` single-purpose and independently
-replayable, at the cost of that dependency being declared outside the
-artifact schema rather than as a first-class field on it.
+
+**Additional Featured**
+>Dependency composition: A capability that depends on another (e.g. `parabank.request_loan` needs `parabank.login` first) doesn't embed the dependency's steps. Instead, the capability's *recording config* (a separate YAML, not the artifact itself) names an `auth_capability_id`, which the CLI replays first.his keeps each saved `Capability` single-purpose and independently replayable, at the cost of that dependency being declared outside the artifact schema.
 
 
 
