@@ -256,8 +256,8 @@ class AgentLoop:
         parts.append(f"Visible text (truncated): {state.visible_text_summary[:500]}")
         result = "\n\n".join(parts)
 
-        print({"------OBSERVATION------"})
-        print(result)
-        print("-----------------------")
+        # print({"------OBSERVATION------"})
+        # print(result)
+        # print("-----------------------")
 
         return result
