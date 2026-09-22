@@ -105,7 +105,8 @@ artifact schema rather than as a first-class field on it.
 
 
 
-![Schema](./static/schema.png)
+<img width="960" height="900" alt="image" src="https://github.com/user-attachments/assets/c7a57868-cf75-49d2-8cca-a571a5a06aac" />
+
 
 
 ## 3. Determinism & error handling
