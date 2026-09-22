@@ -5,6 +5,9 @@ Based on the assignment specification, the system has to have two distinct flows
 
 ![Flowchart](./static/architecture.png)
 
+<img width="1480" height="1420" alt="image" src="https://github.com/user-attachments/assets/3a25da69-b092-405a-bc26-be65aba16ace" />
+
+
 **Agent:** takes a goal and a starting URL. On each turn it takes a snapshot of the current page, sends that state plus the goal to the model, and asks for one next action from a fixed set: `click`, `type_text`, `navigate`, `read`, `select_option`, or declare the goal done. It executes that one action, records whether it succeeded, and feeds the result back in before asking for the next actio and repeats until:
 ```
 1. the model reports the goal is done
