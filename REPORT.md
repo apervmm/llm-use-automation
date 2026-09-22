@@ -38,6 +38,26 @@ class PageState:
 ## 2. Artifact schema
 *the schema and why you shaped it that way.*
 
+```
+class Capability(BaseModel):
+    capability_id: str                     
+    version: int = 1
+    description: str = ""
+    target_app: str = "parabank"
+    entry_url: str
+
+    inputs: list[InputParam] = Field(default_factory=list)
+    outputs: list[OutputField] = Field(default_factory=list)
+    steps: list[Step] = Field(default_factory=list)
+    checkpoint: Optional[Checkpoint] = None
+
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    source: Literal["llm_discovery"] = "llm_discovery"
+    outcome_rules: list[OutcomeRule] = Field(default_factory=list)
+
+    risk_level: RiskLevel = RiskLevel.SAFE
+```
+
 ![Schema](./static/schema.png)
 
 
