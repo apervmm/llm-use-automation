@@ -85,7 +85,7 @@ class Capability(BaseModel):
         source_label: str = ""    
         derived_from_outcome: bool = False   
     ```
-  - `steps`: the ordered actions to replay (click, type, navigate, select, read). Each step also stores exactly which element to act on — the same locator that worked live during discovery, reused as-is rather than recalculated at replay time.
+  - `steps`: the ordered actions to replay.
     ```
     class StepAction(str, Enum):
         CLICK = "click"
@@ -99,9 +99,23 @@ class Capability(BaseModel):
         action: StepAction
         target: Optional[ElementRef] = None 
         value: Optional[str] = None   
-        read_label: Optional[str] = None  # for READ steps, maps to an OutputField
+        read_label: Optional[str] = None 
         description: str = ""
     ```
+      - `step_num`: the step's position in the sequence — replay runs
+    steps in this order, not the order they appear in the file.
+      - `action`: which of the five actions to perform.
+      - `target`: which element to act on — an `ElementRef` (locator +
+        fallback chain) saved from what worked live during discovery.
+        `None` for `navigate`, since there's no element to find.
+      - `value`: the text to type, or the option to select. Holds either a
+        literal or a `{param}` placeholder, depending on whether it was
+        parameterized when recorded.
+      - `read_label`: a human-readable name for what a `read` step
+        captured (e.g. "confirmation message"). Currently just a label for
+        logging/description purposes — despite the code comment, it isn't
+        actually linked to an `OutputField` in the codebase yet.
+      - `description`: a plain-English summary of the step like "click" or "login", generated automatically for readability when someone inspects the saved artifact.
   - `checkpoint`: the single condition that defines success (e.g. the URL changed to a specific page). Checked first, before anything else, so "did this work?" has one clear answer.
   - `outcome_rules`: named, expected non-success results (e.g. "invalid credentials"). Checked only if the checkpoint fails — this keeps a normal negative answer separate from an actual error.
 
