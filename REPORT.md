@@ -63,7 +63,7 @@ class Capability(BaseModel):
     risk_level: RiskLevel = RiskLevel.SAFE
 ```
 
-- **Identity/Version Control:** is used specifically for versioning and grouping artifact schemas populated by discovery runs, it consist of the unique `capability_id`. The `version` is not set by hand — `store.save()` auto-increments it against existing files on disk. The `description` is populated automatically from the discovery goal, giving a human-readable summary. The `target_app` is currently fixed to `"parabank"` — it isn't wired into any logic yet, since this project targets one app, but it's the natural field multi-tenant reuse for different products. So the path for the versioned artifact would look like this: `<target_app>.<capability_id>.v<N>.json`
+- **Identity/Version Control:** is used specifically for versioning and grouping artifact schemas populated by discovery runs, it consist of the unique `capability_id`. The `version` auto-increments against existing files on disk. The `description` is populated automatically from the discovery goal, giving a human-readable summary. The `target_app` is currently fixed to `"parabank"` - to expand generacally for different apps. So the path for the versioned artifact would look like this: `<target_app>.<capability_id>.v<N>.json`
 
 - **Entry Point:** `entry_url` is where replay begins — the browser navigates here before the first step executes. Kept separate from `steps[]` because it isn't an action so much as a precondition for step 1 to make sense.
 
@@ -160,7 +160,9 @@ class Capability(BaseModel):
 
 
 - **Additional Features**
-  1. A capability that depends on another (e.g. `parabank.request_loan` needs `parabank.login` first) doesn't embed the dependency's steps. Instead, the capability's *recording config* (a separate YAML, not the artifact itself) names an `auth_capability_id`, which the CLI replays first. This keeps each saved `Capability` single-purpose and independently replayable, at the cost of that dependency being declared outside the artifact schema.
+  1. A capability that depends on another (e.g. `parabank.request_loan` needs `parabank.login` first) doesn't embed the dependency's steps. 
+  
+  Instead, the capability's *recording config*, a seperate YAML file, names an `auth_capability_id`, which the CLI replays first. This keeps each saved `Capability` single-purpose and independently replayable.
 
 
 
