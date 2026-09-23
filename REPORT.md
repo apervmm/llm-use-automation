@@ -19,7 +19,7 @@ Based on the assignment specification, the system has to have two distinct flows
 - **Surface:** is the layer where both Agent and Replay act on — a single wrapper around one browser session that   neither of them bypasses, where their interactions on the actions are exectuted through actions methods `read_text`, `click`, `goto`, `select_option`, or `type_text`.
   It provides a `snapshot()` for agent that constructs a `pageState`, which consist of the `interactive elements`, `visible text` and a `screenshot` of the page to work on. 
 
-    ```
+    ```python
     @dataclass
     class PageState:
         url: str
@@ -31,13 +31,38 @@ Based on the assignment specification, the system has to have two distinct flows
 
 - **CLI:** is an orchestrator layer that brings `surface`, `artifacts`, `agent`, and `replay` together.
 
+**Key decisions and trade-offs:**
+
+- **A fixed action set, via tool-calling, over free-text actions.**
+  Every turn, the model must return one call from a closed set
+  (`click`, `type_text`, `navigate`, `read`, `select_option`, `done`)
+  rather than a free-form response. This makes actions reliably
+  parseable and keeps the transcript close to the artifact schema's
+  own shape, at the cost of flexibility like drag-and-drop, etc.
+- **Surface as the one seam both Agent and Replay go through.**
+  Neither component talks to Playwright or raw HTML directly — both
+  act only through `Surface`'s methods and see only `PageState`/
+  `ElementRef`. This is deliberate: it's the seam that would let a
+  future desktop or legacy-app surface (Section 3.7) be swapped in by
+  rewriting `surface/perception.py` alone, without touching the agent
+  loop, artifact schema, or replay engine. The cost is that everything
+  — every click, every read — is forced through this one interface,
+  even where a more direct call might otherwise be simpler.
+- **Single browser session, synchronous execution, over
+  services/queues.** Agent, Replay, and escalation all run as one
+  Python process against one live browser session at a time. This
+  keeps the system simple — there is exactly one thing happening at
+  once, so there's no coordination logic to write or reason about. The
+  cost is that this doesn't scale to concurrent runs without real
+  rework; running two capabilities at the same time isn't supported
+  today.
 
 
 ## 2. Artifact schema
 
 The main artifact is `Capability`, which is a versioned and typed schema that consists of 12 fields for 5 groups of reasons:
 
-```
+```python
 class Capability(BaseModel):
     # Identity/Version Control
     capability_id: str                     
