@@ -185,13 +185,45 @@ class Capability(BaseModel):
 - **Additional Features**
   1. A capability that depends on another (e.g. `parabank.request_loan` needs `parabank.login` first) doesn't embed the dependency's steps. 
   
-  Instead, the capability's *recording config*, a seperate YAML file, names an `auth_capability_id`, which the CLI replays first. This keeps each saved `Capability` single-purpose and independently replayable.
+  Instead, the capability's *recording config*, a separate YAML file, names an `auth_capability_id`, which the CLI replays first. This keeps each saved `Capability` single-purpose and independently replayable.
 
 
 
 
 ## 3. Determinism & error handling
-*how you make replay deterministic, and how you detect and handle runtime errors and exceptional states (and, secondarily, any UI drift).*
+
+Replay is deterministic because it never involves an LLM, but only walking on `capability.steps` from artifact in the order they were recorded. Each step's target is the exact locator that already worked live during discovery, so replay never re-searches the page or re-decides what to click. And whether a run succeeded is decided by plain, rule-based checks (`checkpoint`/`outcome_rules`) without LLM models interception. 
+
+
+However, such deterministic even using the same tooling to interact with surface does not necessarily does the same thing, since state of the application might change. 
+
+For example, one of the features that discovery can run is `requesting_loan`, but depending on the account existence, amount of funds, down payment, the run might go differently and there might be needed a different input parameters, different output classifiers or involvement of a human in the loop.
+
+**Classification of the Replay Run** 
+Every replay ends in exactly one of three states: 
+
+```
+python class ReplayStatus(str, Enum): 
+	SUCCESS = "success" # checkpoint met enging
+	BUSINESS_OUTCOME = "business_outcome" # a known non-success ending
+	FAILURE = "failure" # unexpected, needs a human to debug 
+```
+
+1. `SUCCESS` is marking the run of the successful ending, where the checkpoint is met
+2. `BUISNESS_OUTCOME` is marking if we got a different non-success ending like we loan was not approved by the bank, or other reasons.
+3. `FAILUE` is marking for unexpected ending that might be the cause of the UI change, or anything that need manual interception by human. Also, `FAILURE` result always carries `failed_step`, `expected`, `observed`, and `error` — enough detail to actually debug it, not just a "something went wrong."
+
+**Target Handling** 
+Each step stores more than one way to find its target: a primary locator (CSS), then backups in this order: accessible role/name, visible text, and XPath. 
+
+**A real limitation, not a hypothetical one**
+Locators only help when the *target itself* is still findable. Reading a value that lives in plain page text — not inside a link or button — turned out to be a genuine gap: one step read `"Status:"` (the label) instead of `"Approved"` (the value next to it), because the fix for finding plain text found the label element, not its neighboring value. This wasn't a guess — it showed up in an actual replay run: 
+
+```
+json "outputs": { "loan_status": "Status:", "new_account_id": "14676" } 
+``` 
+
+This is exactly the kind of UI-drift/markup-variation problem this section is meant to address honestly, not paper over. See Cuts for the specific fix and why it's not yet applied everywhere.
 
 
 
