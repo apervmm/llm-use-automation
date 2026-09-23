@@ -211,10 +211,15 @@ python class ReplayStatus(str, Enum):
 
 1. `SUCCESS` is marking the run of the successful ending, where the checkpoint is met
 2. `BUISNESS_OUTCOME` is marking if we got a different non-success ending like we loan was not approved by the bank, or other reasons.
-3. `FAILUE` is marking for unexpected ending that might be the cause of the UI change, or anything that need manual interception by human. Also, `FAILURE` result always carries `failed_step`, `expected`, `observed`, and `error` — enough detail to actually debug it, not just a "something went wrong."
+3. `FAILUE` is marking for unexpected ending that might be the cause of the UI change, or anything that need manual interception by human. Also, `FAILURE` result always carries `failed_step`, `expected`, `observed`, and `error` — enough detail to actually debug it.
 
 **Target Handling** 
 Each step stores more than one way to find its target: a primary locator (CSS), then backups in this order: accessible role/name, visible text, and XPath. 
+
+<p align="center">
+	<img width="1172" height="620" alt="image" src="https://github.com/user-attachments/assets/330e00af-3f16-40bc-acad-498847608ad0"/>
+</p>
+
 
 **A real limitation, not a hypothetical one**
 Locators only help when the *target itself* is still findable. Reading a value that lives in plain page text — not inside a link or button — turned out to be a genuine gap: one step read `"Status:"` (the label) instead of `"Approved"` (the value next to it), because the fix for finding plain text found the label element, not its neighboring value. This wasn't a guess — it showed up in an actual replay run: 
