@@ -8,27 +8,26 @@ Based on the assignment specification, the system has to have two distinct flows
 </p>
 
 - **Agent:** takes a goal and a starting URL. On each turn it takes a snapshot of the current page, sends that state plus the goal to the model, and asks for one next action from a fixed set: `click`, `type_text`, `navigate`, `read`, `select_option`, or declare the goal done. It executes that one action, records whether it succeeded, and feeds the result back in before asking for the next actio and repeats until:
-```
+
 1. the model reports the goal is done
 2. the step limit (15) is reached — extendable by 3 more steps if a human resumes from escalation
 3. 3 consecutive failed actions occur — also escalates to a human
-```
+
 
 - **Replay:** Takes a saved artifact — loaded by capability ID from the `/artifacts/` store — and a set of input values supplied by the caller at invocation time `--input` flag. It walks the artifact's steps in the recorded order, substituting each input into the step that expects it, and executes each step against the same kind of session the agent used. After the last step, it checks whether the artifact's declared condition for success actually holds on the page. 
 
-- **Surface:** is the layer where both Agent and Replay act on — a single wrapper around one browser session that neither of them bypasses, where their interactions on the actions are exectuted through actions methods `read_text`, `click`, `goto`, `select_option`, or `type_text`.
+- **Surface:** is the layer where both Agent and Replay act on — a single wrapper around one browser session that   neither of them bypasses, where their interactions on the actions are exectuted through actions methods `read_text`, `click`, `goto`, `select_option`, or `type_text`.
+  It provides a `snapshot()` for agent that constructs a `pageState`, which consist of the `interactive elements`, `visible text` and a `screenshot` of the page to work on. 
 
-It provides a `snapshot()` for agent that constructs a `pageState`, which consist of the `interactive elements`, `visible text` and a `screenshot` of the page to work on. 
-
-```
-@dataclass
-class PageState:
-    url: str
-    title: str
-    interactive_elements: list[InteractiveElement]
-    visible_text_summary: str
-    screenshot_path: Optional[str] = None
-```
+    ```
+    @dataclass
+    class PageState:
+        url: str
+        title: str
+        interactive_elements: list[InteractiveElement]
+        visible_text_summary: str
+        screenshot_path: Optional[str] = None
+    ```
 
 - **CLI:** is an orchestrator layer that brings `surface`, `artifacts`, `agent`, and `replay` together.
 
