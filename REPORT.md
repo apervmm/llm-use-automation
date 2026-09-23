@@ -120,9 +120,8 @@ class Capability(BaseModel):
       - `step_num`: the step's position in the sequence — replay runs
     steps in this order, not the order they appear in the file.
       - `action`: which of the five actions to perform.
-      - `target`: which element to act on — an `ElementRef` (locator +
-        fallback chain) saved from what worked live during discovery.
-        `None` for `navigate`, since there's no element to find.
+      - `target`: which element to act on using an `ElementRef`, which consists of a locator and
+        fallback chain saved from what worked live during discovery. `None` for `navigate`, since            there's no element to find.
       - `value`: the text to type, or the option to select. Holds either a
         literal or a `{param}` placeholder, depending on whether it was
         parameterized when recorded.
