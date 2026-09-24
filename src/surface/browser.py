@@ -15,7 +15,7 @@ class BrowserSession:
         self.page: Page = self.browser.new_page()
         self.allowlist = allowlist or Allowlist()
         self._blocked_nav: str | None = None
-        self.page.route("**/*", self._guard_navigation)
+        self.page.context.route("**/*", self._guard_navigation) 
         self._dialogs: list[str] = []
         self.page.on("dialog", self._on_dialog)
 
@@ -69,13 +69,18 @@ class BrowserSession:
     
 
     def _guard_navigation(self, route, request):
-        """Abort main-page navigations to URLs outside the allowlist, before they load."""
-        if request.is_navigation_request() and request.frame.parent_frame is None:
+        """Cancel top-level navigations (any tab, including popups) to URLs outside the allowlist."""
+        if request.is_navigation_request():
             try:
-                self.allowlist._check_url(request.url)
-            except PolicyViolation as e:
-                self._blocked_nav = str(e)
-                return route.fulfill(status=204, body="")
+                is_top_level = request.frame.parent_frame is None
+            except Exception:
+                is_top_level = True
+            if is_top_level:
+                try:
+                    self.allowlist._check_url(request.url)
+                except PolicyViolation as e:
+                    self._blocked_nav = str(e)
+                    return route.fulfill(status=204, body="")
         route.continue_()
 
 
