@@ -7,32 +7,37 @@
   "inputs": [
     {
       "name": "amount",
+      "type": "number",
       "description": "",
       "required": true,
       "example": "1000"
     },
     {
       "name": "down_payment",
+      "type": "number",
       "description": "",
       "required": true,
       "example": "10"
     },
     {
       "name": "from_account_id",
+      "type": "number",
       "description": "",
       "required": true,
-      "example": "12567"
+      "example": "12678"
     }
   ],
   "outputs": [
     {
       "name": "loan_status",
+      "type": "string",
       "description": "",
       "source_label": "loan_status",
       "derived_from_outcome": true
     },
     {
       "name": "new_account_id",
+      "type": "string",
       "description": "",
       "source_label": "new_account_id",
       "derived_from_outcome": false
@@ -103,7 +108,7 @@
       },
       "value": "{from_account_id}",
       "read_label": null,
-      "description": "Select '12567' in 'From account #:'"
+      "description": "Select '{from_account_id}' in 'From account #:'"
     },
     {
       "step_num": 4,
@@ -176,7 +181,7 @@
     "kind": "text_visible",
     "expected": "Congratulations, your loan has been approved."
   },
-  "created_at": "2026-09-24T13:55:27.897934+00:00",
+  "created_at": "2026-09-24T22:45:21.932607+00:00",
   "outcome_rules": [
     {
       "name": "insufficient_funds_for_down_payment",

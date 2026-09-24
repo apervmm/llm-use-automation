@@ -7,12 +7,14 @@
   "inputs": [
     {
       "name": "username",
+      "type": "string",
       "description": "",
       "required": true,
       "example": "john"
     },
     {
       "name": "password",
+      "type": "string",
       "description": "",
       "required": true,
       "example": "[REDACTED]"
@@ -21,12 +23,14 @@
   "outputs": [
     {
       "name": "login_succeeded",
+      "type": "string",
       "description": "",
       "source_label": "login_succeeded",
       "derived_from_outcome": false
     },
     {
       "name": "message",
+      "type": "string",
       "description": "",
       "source_label": "message",
       "derived_from_outcome": false
@@ -111,7 +115,7 @@
     "kind": "url_contains",
     "expected": "/overview.htm"
   },
-  "created_at": "2026-09-24T13:33:14.589540+00:00",
+  "created_at": "2026-09-24T22:44:55.800751+00:00",
   "outcome_rules": [
     {
       "name": "invalid_credentials",

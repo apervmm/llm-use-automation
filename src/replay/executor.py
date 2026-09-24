@@ -338,9 +338,9 @@ def _extract_outputs(
     for field in capability.outputs:
         if field.derived_from_outcome:
             if status == ReplayStatus.SUCCESS:
-                outputs[field.name] = "Approved"
+                outputs[field.name] = "success"
             elif status == ReplayStatus.BUSINESS_OUTCOME:
-                outputs[field.name] = "Denied"
+                outputs[field.name] = outcome_name
             else:
                 outputs[field.name] = None
         elif field.source_label in read_values:
