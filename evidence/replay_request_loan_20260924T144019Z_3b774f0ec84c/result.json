@@ -1,0 +1,31 @@
+{
+  "run_type": "replay",
+  "run_id": "3b774f0ec84c",
+  "timestamp": "20260924T144024Z",
+  "inputs": {
+    "amount": "1000",
+    "down_payment": "10",
+    "from_account_id": "13344"
+  },
+  "status": "failure",
+  "capability_id": "parabank.request_loan",
+  "outputs": {},
+  "outcome_name": null,
+  "failed_step": null,
+  "expected": null,
+  "observed": null,
+  "error": "Replay aborted by operator during risky-confirmation escalation.",
+  "escalations": [
+    {
+      "reason": "risky_confirmation",
+      "capability_or_goal": "parabank.request_loan",
+      "current_step": null,
+      "current_url": "http://localhost:8080/parabank/overview.htm",
+      "detail": "This will submit a NEW loan application with: amount=1000, down_payment=10, from_account_id=13344.",
+      "screenshot_path": "evidence/replay_request_loan_20260924T144019Z_3b774f0ec84c/escalation_a2e5a4ccf11f45c989b2c594d83d4934.png",
+      "timestamp": "2026-09-24T14:40:20.650526+00:00",
+      "operator_decision": "abort",
+      "human_actions": []
+    }
+  ]
+}

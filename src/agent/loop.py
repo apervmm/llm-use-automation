@@ -236,7 +236,7 @@ class AgentLoop:
         if not result.success:
             return f"ERROR: {name} failed — {result.error}", state, ref, False
 
-        self.session.page.wait_for_timeout(500)
+        self.session.wait(500)
 
         new_state = snapshot(self.session, screenshot_path=f"{self.evidence_dir}/step_{step_num}.png")
         

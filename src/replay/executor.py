@@ -272,7 +272,7 @@ def input_errors(capability: Capability, inputs: dict) -> list[str]:
                    float(inputs[p.name])
                except ValueError:
                    errors.append(f"'{p.name}' must be a number, got {inputs[p.name]!r}")
-                   
+
     return errors
 
 
@@ -286,18 +286,8 @@ def _substitute(template: str, inputs: dict) -> str:
     return re.sub(r"\{(\w+)\}", _sub, template)
 
 
-# def _checkpoint_met(session: BrowserSession, checkpoint: Checkpoint) -> bool:
-#     if checkpoint.kind == "url_contains":
-#         return checkpoint.expected in session.page.url
-#     if checkpoint.kind == "text_visible":
-#         return checkpoint.expected in session.page.inner_text("body")
-#     if checkpoint.kind == "element_visible":
-#         return session.page.locator(checkpoint.expected).first.is_visible()
-#     return False
-
-
 def _check_outcomes(session: BrowserSession, rules: list[OutcomeRule]) -> str | None:
-    session.page.wait_for_timeout(500)
+    session.wait(500)
     page_text = session.get_visible_text()
     for rule in rules:
         if rule.kind == "text_visible" and rule.expected in page_text:
@@ -343,7 +333,7 @@ def _wait_for_checkpoint(
     while elapsed < timeout_ms:
         if checkpoint_met(session, checkpoint):
             return True
-        session.page.wait_for_timeout(interval_ms)
+        session.wait(interval_ms)
         elapsed += interval_ms
     return checkpoint_met(session, checkpoint)
 

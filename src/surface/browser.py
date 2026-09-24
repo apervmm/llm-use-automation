@@ -100,6 +100,19 @@ class BrowserSession:
     def get_url(self) -> str:
         return self.page.url
     
+    def wait(self, ms: int) -> None:
+        self.page.wait_for_timeout(ms)
+
+    def is_visible(self, selector: str) -> bool:
+        try:
+            return self.page.locator(selector).first.is_visible()
+        except Exception:
+            return False
+        
+
+    def bring_to_front(self) -> None:
+        self.page.bring_to_front()
+    
     # navigation
     def goto(self, url: str) -> ActionResult:
         start = time.time()
