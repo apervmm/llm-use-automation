@@ -116,7 +116,7 @@ def _build_steps(transcript: list[TranscriptStep], param_map: dict[str, str]) ->
                 action=StepAction.SELECT_OPTION,
                 target=t.resolved_ref,
                 value=value,
-                description=f"Select '{t.tool_input.get('option_value')}' in '{t.tool_input.get('element_name')}'",
+                description=f"Select '{value}' in '{t.tool_input.get('element_name')}'",
             ))
         elif t.tool_name == "navigate":
             steps.append(Step(

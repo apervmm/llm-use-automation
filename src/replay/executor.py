@@ -122,7 +122,7 @@ def replay(
                 status=ReplayStatus.FAILURE,
                 capability_id=capability.capability_id,
                 failed_step=step.step_num,
-                expected=step.description,
+                expected=_fill(step.description, inputs),
                 observed=result.error,
                 error=f"Policy violation at step {step.step_num}: {result.error}",
                 escalations=escalations,
@@ -163,6 +163,8 @@ def replay(
                     capability.capability_id,
                     f"Step {step.step_num} ({step.action.value}) failed: {error_text}",
                     current_step=step.step_num,
+                    evidence_dir=evidence_dir,
+                    run_id=run_id,
                 )
 
 
@@ -194,7 +196,7 @@ def replay(
                         status=ReplayStatus.FAILURE,
                         capability_id=capability.capability_id,
                         failed_step=step.step_num,
-                        expected=step.description,
+                        expected=_fill(step.description, inputs),
                         observed=retry_error,
                         error=f"Step {step.step_num} ({step.action.value}) failed even after operator intervention: {retry_error}",
                         escalations=escalations,
@@ -203,7 +205,7 @@ def replay(
                 status=ReplayStatus.FAILURE,
                 capability_id=capability.capability_id,
                 failed_step=step.step_num,
-                expected=step.description,
+                expected=_fill(step.description, inputs),
                 observed=error_text,
                 error=f"Step {step.step_num} ({step.action.value}) failed: {error_text}",
                 escalations=escalations,
@@ -233,6 +235,8 @@ def replay(
                 capability.capability_id,
                 f"Checkpoint not met: {capability.checkpoint.kind}={capability.checkpoint.expected}",
                 current_step=steps[-1].step_num if steps else None,
+                evidence_dir=evidence_dir,
+                run_id=run_id,
             )
             
             decision, escalation_record = on_escalation(req, handoff_state)
@@ -306,6 +310,12 @@ def _substitute(template: str, inputs: dict) -> str:
         return str(inputs[key])
     return re.sub(r"\{(\w+)\}", _sub, template)
 
+
+def _fill(text: str, inputs: dict) -> str:
+    """A step description with the caller's actual values in place of {placeholders}."""
+    for key, val in inputs.items():
+        text = text.replace("{" + key + "}", str(val))
+    return text
 
 def _check_outcomes(session: BrowserSession, rules: list[OutcomeRule]) -> str | None:
     session.wait(500)
