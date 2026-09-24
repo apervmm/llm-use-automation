@@ -2,6 +2,7 @@ from agent.loop import AgentRunResult, TranscriptStep
 from .schema import Capability, Step, StepAction, InputParam, OutputField, Checkpoint, RiskLevel
 from safety.allowlist import Allowlist
 from safety.redaction import redact
+from .store import qualify
 
 
 
@@ -42,10 +43,11 @@ def record(
         if key in run_result.outputs or key in outcome_derived_outputs
     ]
 
-    risk_level = RiskLevel.RISKY if allowlist.is_risky(capability_id) else RiskLevel.SAFE
+    full_id = qualify(capability_id)
+    risk_level = RiskLevel.RISKY if allowlist.is_risky(full_id) else RiskLevel.SAFE
 
     return Capability(
-        capability_id=capability_id,
+        capability_id=full_id,
         description=description or f"Recorded capability for goal: {run_result.goal}",
         entry_url=entry_url,
         inputs=inputs,

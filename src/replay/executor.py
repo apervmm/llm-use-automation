@@ -5,6 +5,8 @@ from escalation.handoff import raise_escalation, EscalationReason, HandoffState,
 from .outcomes import ReplayResult, ReplayStatus
 from safety.redaction import redact_any
 from replay.checkpoint import checkpoint_met
+from safety.allowlist import Allowlist
+from artifact.store import qualify
 
 
 def replay(
@@ -24,7 +26,10 @@ def replay(
     handoff_state = HandoffState()
     escalations: list[dict] = [] 
 
-    if capability.risk_level == RiskLevel.RISKY and not confirmed:
+    full_id = qualify(capability.capability_id, capability.target_app)
+    is_risky = capability.risk_level == RiskLevel.RISKY or Allowlist().is_risky(full_id)
+    
+    if is_risky and not confirmed:
         if on_escalation:
             safe_inputs = redact_any(dict(inputs))
             params_summary = ", ".join(f"{k}={v}" for k, v in safe_inputs.items())
