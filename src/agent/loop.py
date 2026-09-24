@@ -66,7 +66,11 @@ class AgentLoop:
 
 
     def run(self, goal: str, start_url: str) -> AgentRunResult:
-        self.session.goto(start_url)
+
+        nav = self.session.goto(start_url)
+        if not nav.success:
+            return AgentRunResult(goal, False, f"entry_unreachable: {nav.error}")
+        
         transcript: list[TranscriptStep] = []
         outputs: dict = {}
         escalations: list[dict] = []

@@ -17,7 +17,7 @@ class ParamType(str, Enum):
 
 class InputParam(BaseModel):
     name: str                         
-    # type: ParamType = ParamType.STRING
+    type: ParamType = ParamType.STRING
     description: str = ""
     required: bool = True
     example: Optional[str] = None
@@ -25,7 +25,7 @@ class InputParam(BaseModel):
 
 class OutputField(BaseModel):
     name: str                         
-    # type: ParamType = ParamType.STRING
+    type: ParamType = ParamType.STRING
     description: str = ""
     source_label: str = ""    
     derived_from_outcome: bool = False         

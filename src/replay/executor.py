@@ -1,6 +1,6 @@
 import re
 from surface.browser import BrowserSession
-from artifact.schema import Capability, StepAction, Checkpoint, OutcomeRule, RiskLevel
+from artifact.schema import Capability, StepAction, Checkpoint, OutcomeRule, RiskLevel, ParamType
 from escalation.handoff import raise_escalation, EscalationReason, HandoffState, OperatorDecision
 from .outcomes import ReplayResult, ReplayStatus
 from safety.redaction import redact_any
@@ -265,6 +265,14 @@ def input_errors(capability: Capability, inputs: dict) -> list[str]:
         errors.append(f"unknown input(s): {unknown}")
     if unsupplied := sorted(referenced - set(inputs) - set(missing)):
         errors.append(f"steps reference params with no value: {unsupplied}")
+
+    for p in capability.inputs:
+           if p.type == ParamType.NUMBER and p.name in inputs:
+               try:
+                   float(inputs[p.name])
+               except ValueError:
+                   errors.append(f"'{p.name}' must be a number, got {inputs[p.name]!r}")
+                   
     return errors
 
 

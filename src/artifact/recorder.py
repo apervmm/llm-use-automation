@@ -1,5 +1,14 @@
 from agent.loop import AgentRunResult, TranscriptStep
-from .schema import Capability, Step, StepAction, InputParam, OutputField, Checkpoint, RiskLevel
+from .schema import (
+    Capability, 
+    Step, 
+    StepAction, 
+    InputParam, 
+    OutputField, 
+    Checkpoint, 
+    RiskLevel, 
+    ParamType
+)
 from safety.allowlist import Allowlist
 from safety.redaction import redact
 from .store import qualify
@@ -33,6 +42,7 @@ def record(
     inputs = [
         InputParam(
             name=name, 
+            type=_infer_type(literal),
             example="[REDACTED]" if name.lower() in ("password", "pin", "ssn") else literal
         )
         for literal, name in param_map.items()
@@ -133,3 +143,12 @@ def _template(text: str, param_map: dict[str, str]) -> str:
     for literal in sorted(param_map, key=len, reverse=True):
         text = re.sub(rf"(?<!\w){re.escape(literal)}(?!\w)", "{" + param_map[literal] + "}", text)
     return text
+
+
+def _infer_type(literal: str) -> ParamType:
+    """'1000' -> NUMBER, 'demo' -> STRING, based on the value the agent actually used."""
+    try:
+        float(literal)
+        return ParamType.NUMBER
+    except ValueError:
+        return ParamType.STRING

@@ -1,6 +1,6 @@
 import time
 from pathlib import Path
-from playwright.sync_api import sync_playwright, Page, Browser, TimeoutError as PWTimeout
+from playwright.sync_api import sync_playwright, Page, Browser, TimeoutError as PWTimeout, Error as PWError
 
 from .types import ActionResult, ElementRef, LocatorStrategy
 
@@ -108,9 +108,9 @@ class BrowserSession:
             self.page.goto(url, wait_until="domcontentloaded", timeout=15000)
             self.allowlist._check_url(self.page.url)
             return ActionResult(True, "navigate",  url, duration_ms=int((time.time() - start) * 1000))
-        except PWTimeout as e:
-            return ActionResult(False, "navigate", url, error=str(e))
         except PolicyViolation as e:
+            return ActionResult(False, "navigate", url, error=str(e))
+        except PWError as e:
             return ActionResult(False, "navigate", url, error=str(e))
         
 
