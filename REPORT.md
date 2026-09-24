@@ -192,41 +192,60 @@ class Capability(BaseModel):
 
 ## 3. Determinism & error handling
 
-Replay is deterministic because it never involves an LLM, but only walking on `capability.steps` from artifact in the order they were recorded. Each step's target is the exact locator that already worked live during discovery, so replay never re-searches the page or re-decides what to click. And whether a run succeeded is decided by plain, rule-based checks (`checkpoint`/`outcome_rules`) without LLM models interception. 
+#### Deterministic replay
+Replay is deterministic because nothing is decided at runtime. There are three points where a decision could happen, and each one is fixed in advance: 
+1. **Which actions to take.** Replay does not call the LLM. It runs `capability.steps` in `step_num` order with the recorded targets and values. The only thing that changes between runs is the `{param}` placeholders, which `_substitute()` fills from the caller's inputs. 
+2. **Whether the inputs are valid.** `_validate_inputs()` rejects missing required inputs, and `_substitute()` rejects unknown parameters, before any UI action. A bad input stops the run before it starts, instead of partway through. 
+3. **Whether the run succeeded.** This is decided by `checkpoint` and `outcome_rules` (text or URL checks), not by a model reading the page. 
+
+The same inputs always produce the same actions. The result can still differ, because the application's data can differ. For example, the same `request_loan` steps can be approved or denied depending on the account balance. This is why the result types below separate a business outcome from a failure.
+
+**Element Targeting** 
+Fixed steps are only useful if each step finds the same element every time. A single locator can break when markup changes slightly, so each step stores a primary locator and fallbacks, all captured from the element used during discovery. The order depends on how stable the CSS selector is: 
+1. **Stable selector** (`#id` or `[name=...]`):  CSS first, then role + name, then visible text. 
+2. **Positional selector** (`nth-of-type` path): role + name first, then visible text, then the positional CSS.
+
+However, there's an issue with `Fallbacks` that could match the wrong element. So I added `_resolve()` to handle this by checking each candidate in the following order:
+1. Waiting to 3s for the element to be visible. 
+2. For links and buttons found by a non-stable locator, check that the element's name matches `expected_name`. If not, try the next candidate. 
+3. If all candidates fail, raise an error listing each strategy and why it failed.
+
+This way replay either acts on the right element or stops with a clear error. 
 
 
-However, such deterministic even using the same tooling to interact with surface does not necessarily does the same thing, since state of the application might change. 
+#### Result types
+Since the application's data can change the result, replay needs to tell the caller what kind of result it got. Every run ends in one of three states: 
+1. **`SUCCESS`**: the checkpoint was met and outputs are returned. Example: loan approved. 
+2. **`BUSINESS_OUTCOME`**: the app gave a known non-success answer. This is a valid result, not an error. Examples: `invalid_credentials`, `insufficient_funds`. 
+3. **`FAILURE`**: something unexpected happened and replay stopped. Examples: element not found, page unreachable, or any other thing that causes the fail.
 
-For example, one of the features that discovery can run is `requesting_loan`, but depending on the account existence, amount of funds, down payment, the run might go differently and there might be needed a different input parameters, different output classifiers or involvement of a human in the loop.
+The `executor.py` picks the state by checking in this order, both when a step fails and after the last step:
+1. Checkpoint met → `SUCCESS`. 
+2. An `outcome_rule` matches → `BUSINESS_OUTCOME`. Rules are checked in order and the first match wins, so specific messages are listed first. 
+3. Neither → escalate to an operator (Section 5). If still unresolved → `FAILURE`.
 
-**Classification of the Replay Run** 
-Every replay ends in exactly one of three states: 
+Checking outcome rules before declaring failure is what keeps "loan denied" from being reported as a crash. In `/evidence/`, replaying `request_loan` with `amount=100000, down_payment=1` returns `business_outcome` as `insufficient_funds`.
 
-```
-python class ReplayStatus(str, Enum): 
-	SUCCESS = "success" # checkpoint met enging
-	BUSINESS_OUTCOME = "business_outcome" # a known non-success ending
-	FAILURE = "failure" # unexpected, needs a human to debug 
-```
+A `FAILURE` includes `failed_step`, `expected`, `observed`, and `error`, plus a screenshot if an escalation was raised. This is enough to see where the run stopped and why.
 
-1. `SUCCESS` is marking the run of the successful ending, where the checkpoint is met
-2. `BUISNESS_OUTCOME` is marking if we got a different non-success ending like we loan was not approved by the bank, or other reasons.
-3. `FAILUE` is marking for unexpected ending that might be the cause of the UI change, or anything that need manual interception by human. Also, `FAILURE` result always carries `failed_step`, `expected`, `observed`, and `error` — enough detail to actually debug it.
+#### Runtime conditions
+The result types above only work if each runtime problem is sent to the right one. Each condition is handled as follows: 
+1. **Missing or unknown input:** rejected before any UI action. The caller gets an error.
+2. **Slow render or redirect:** each locator waits up to 3s, and the checkpoint is polled every 250ms for up to 5s. Replay continues. 
+3. **Primary locator not found:** the next fallback is tried, with the name check. Replay continues. 
+4. **Known app message:** matched by `outcome_rules` → `BUSINESS_OUTCOME`. 
+5. **Action outside the allowlist:** blocked before acting → `FAILURE`. 
+6. **Entry page unreachable:** 15s timeout, checked before step 1 → `FAILURE` at step 0. 
+7. **Step fails and no rule matches:** escalated. The operator fixes it in the live session, then the step is retried once. Otherwise → `FAILURE`. 
+8. **Risky capability not confirmed:** the operator must confirm before step 1. If aborted → `FAILURE`. 
 
-**Target Handling** 
-Each step stores more than one way to find its target: a primary locator (CSS), then backups in this order: accessible role/name, visible text, and XPath. 
+The first three are recovered automatically. The rest either return a known result or stop with a clear error.
 
-<p align="center">
-	<img width="1172" height="620" alt="image" src="https://github.com/user-attachments/assets/330e00af-3f16-40bc-acad-498847608ad0"/>
-</p>
-
-
-```
-json "outputs": { "loan_status": "Status:", "new_account_id": "14676" } 
-``` 
-
-This is exactly the kind of UI-drift/markup-variation problem this section is meant to address honestly, not paper over. See Cuts for the specific fix and why it's not yet applied everywhere.
-
+#### Limits 
+Some conditions are not handled automatically yet. They still don't pass silently: each one causes a failed step and goes to an operator. 
+1. **Not automated:** dismissing unexpected dialogs, retrying failed page loads, detecting session timeouts. The fix is to declare known interstitials in the artifact with a recovery action, the same way `outcome_rules` declare known results. 
+2. **UI drift:** fallbacks and name checks handle small changes, such as a new id or a moved button. Larger changes fail at a specific step instead of acting on the wrong element. 
+3. **Plain-text reads:** reading a value next to a label can return the label instead (e.g. `"loan_status": "Status:"`). See Cuts.
 
 
 ## 4. Heterogeneity & multi-tenant
