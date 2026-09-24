@@ -221,7 +221,7 @@ class BrowserSession:
 
                 # 3. Wait for the wanted option to load, then select it
         try:
-            loc.locator(f'option[value="{value}"]').wait_for(state="attached", timeout=5000)
+            # loc.locator(f'option[value="{value}"]').wait_for(state="attached", timeout=5000)
             loc.select_option(value=value, timeout=5000)
             self.allowlist._check_url(self.page.url)
             return ActionResult(

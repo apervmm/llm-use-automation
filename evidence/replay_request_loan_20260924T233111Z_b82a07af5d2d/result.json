@@ -1,0 +1,44 @@
+{
+  "run_type": "replay",
+  "run_id": "b82a07af5d2d",
+  "timestamp": "20260924T233135Z",
+  "inputs": {
+    "amount": "1000",
+    "down_payment": "10",
+    "from_account_id": "99999"
+  },
+  "status": "failure",
+  "capability_id": "parabank.request_loan",
+  "outputs": {},
+  "outcome_name": null,
+  "failed_step": 3,
+  "expected": "Select '99999' in 'From account #:'",
+  "observed": "The dropdown has 20 option(s): ['12789', '12900', '13011', '13122', '13233', '54321', '13566', '12345', '13677', '13788', '12456', '13899', '14010', '12567', '14121', '14232', '14343', '12678', '14454', '13344']. '99999' isn't one of them. | raw error: TimeoutError: Locator.select_option: Timeout 5000ms exceeded.\nCall log:\n  - waiting for locator(\"#fromAccountId\").first\n    - locator resolved to <select class=\"input\" id=\"fromAccountId\">\u2026</select>\n  - attempting select option action\n    2 \u00d7 waiting for element to be visible and enabled\n      - did not find some options\n    - retrying select option action\n    - waiting 20ms\n    2 \u00d7 waiting for element to be visible and enabled\n      - did not find some options\n    - retrying select option action\n      - waiting 100ms\n    10 \u00d7 waiting for element to be visible and enabled\n       - did not find some options\n     - retrying select option action\n       - waiting 500ms\n",
+  "error": "Step 3 (select_option) failed: The dropdown has 20 option(s): ['12789', '12900', '13011', '13122', '13233', '54321', '13566', '12345', '13677', '13788', '12456', '13899', '14010', '12567', '14121', '14232', '14343', '12678', '14454', '13344']. '99999' isn't one of them. | raw error: TimeoutError: Locator.select_option: Timeout 5000ms exceeded.\nCall log:\n  - waiting for locator(\"#fromAccountId\").first\n    - locator resolved to <select class=\"input\" id=\"fromAccountId\">\u2026</select>\n  - attempting select option action\n    2 \u00d7 waiting for element to be visible and enabled\n      - did not find some options\n    - retrying select option action\n    - waiting 20ms\n    2 \u00d7 waiting for element to be visible and enabled\n      - did not find some options\n    - retrying select option action\n      - waiting 100ms\n    10 \u00d7 waiting for element to be visible and enabled\n       - did not find some options\n     - retrying select option action\n       - waiting 500ms\n",
+  "escalations": [
+    {
+      "reason": "risky_confirmation",
+      "capability_or_goal": "parabank.request_loan",
+      "current_step": null,
+      "current_url": "http://localhost:8080/parabank/overview.htm",
+      "detail": "This will submit a NEW loan application with: amount=1000, down_payment=10, from_account_id=99999.",
+      "screenshot_path": "evidence/replay_request_loan_20260924T233111Z_b82a07af5d2d/escalation_647add2f7dab470597e9d80aa259e714.png",
+      "timestamp": "2026-09-24T23:31:13.869380+00:00",
+      "operator_decision": "resume",
+      "human_actions": [
+        "approve loan"
+      ]
+    },
+    {
+      "reason": "replay_failure",
+      "capability_or_goal": "parabank.request_loan",
+      "current_step": 3,
+      "current_url": "http://localhost:8080/parabank/requestloan.htm",
+      "detail": "Step 3 (select_option) failed: The dropdown has 20 option(s): ['12789', '12900', '13011', '13122', '13233', '54321', '13566', '12345', '13677', '13788', '12456', '13899', '14010', '12567', '14121', '14232', '14343', '12678', '14454', '13344']. '99999' isn't one of them. | raw error: TimeoutError: Locator.select_option: Timeout 5000ms exceeded.\nCall log:\n  - waiting for locator(\"#fromAccountId\").first\n    - locator resolved to <select class=\"input\" id=\"fromAccountId\">\u2026</select>\n  - attempting select option action\n    2 \u00d7 waiting for element to be visible and enabled\n      - did not find some options\n    - retrying select option action\n    - waiting 20ms\n    2 \u00d7 waiting for element to be visible and enabled\n      - did not find some options\n    - retrying select option action\n      - waiting 100ms\n    10 \u00d7 waiting for element to be visible and enabled\n       - did not find some options\n     - retrying select option action\n       - waiting 500ms\n",
+      "screenshot_path": "evidence/replay_request_loan_20260924T233111Z_b82a07af5d2d/escalation_4ced44e70b7a4336b6ccca1b4c166eb4.png",
+      "timestamp": "2026-09-24T23:31:31.250309+00:00",
+      "operator_decision": "abort",
+      "human_actions": []
+    }
+  ]
+}
