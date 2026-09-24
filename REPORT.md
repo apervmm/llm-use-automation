@@ -221,9 +221,6 @@ Each step stores more than one way to find its target: a primary locator (CSS), 
 </p>
 
 
-**A real limitation, not a hypothetical one**
-Locators only help when the *target itself* is still findable. Reading a value that lives in plain page text — not inside a link or button — turned out to be a genuine gap: one step read `"Status:"` (the label) instead of `"Approved"` (the value next to it), because the fix for finding plain text found the label element, not its neighboring value. This wasn't a guess — it showed up in an actual replay run: 
-
 ```
 json "outputs": { "loan_status": "Status:", "new_account_id": "14676" } 
 ``` 
