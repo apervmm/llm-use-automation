@@ -8,6 +8,8 @@ from replay.checkpoint import checkpoint_met
 from safety.allowlist import Allowlist
 from artifact.store import qualify
 
+_PLACEHOLDER = re.compile(r"\{(\w+)\}")
+
 
 def replay(
     session: BrowserSession, 
@@ -23,8 +25,20 @@ def replay(
     
     Checkpoint miss => checks declared outcome_rules before concluding it's a hard failure.
     """
+
+
     handoff_state = HandoffState()
     escalations: list[dict] = [] 
+
+    if errors := input_errors(capability, inputs):
+        return ReplayResult(
+            status=ReplayStatus.FAILURE,
+            capability_id=capability.capability_id,
+            failed_step=0, 
+            expected="valid inputs", 
+            observed="; ".join(errors),
+            error=f"Invalid inputs: {'; '.join(errors)}",
+        )
 
     full_id = qualify(capability.capability_id, capability.target_app)
     is_risky = capability.risk_level == RiskLevel.RISKY or Allowlist().is_risky(full_id)
@@ -66,7 +80,7 @@ def replay(
                 escalations=escalations
             )
         
-    _validate_inputs(capability, inputs)
+    # _validate_inputs(capability, inputs)
 
     nav_result = session.goto(capability.entry_url)
 
@@ -234,10 +248,24 @@ def replay(
     )
 
 
-def _validate_inputs(capability: Capability, inputs: dict) -> None:
-    missing = [p.name for p in capability.inputs if p.required and p.name not in inputs]
+# def _validate_inputs(capability: Capability, inputs: dict) -> None:
+#     missing = [p.name for p in capability.inputs if p.required and p.name not in inputs]
+#     if missing:
+#         raise ValueError(f"Missing required input(s): {missing}")
+
+
+def input_errors(capability: Capability, inputs: dict) -> list[str]:
+    declared = {p.name for p in capability.inputs}
+    referenced = {m for s in capability.steps if s.value for m in _PLACEHOLDER.findall(s.value)}
+    missing = sorted(p.name for p in capability.inputs if p.required and p.name not in inputs)
+    errors = []
     if missing:
-        raise ValueError(f"Missing required input(s): {missing}")
+        errors.append(f"missing required input(s): {missing}")
+    if unknown := sorted(set(inputs) - declared):
+        errors.append(f"unknown input(s): {unknown}")
+    if unsupplied := sorted(referenced - set(inputs) - set(missing)):
+        errors.append(f"steps reference params with no value: {unsupplied}")
+    return errors
 
 
 def _substitute(template: str, inputs: dict) -> str:

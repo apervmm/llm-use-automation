@@ -1,0 +1,207 @@
+{
+  "capability_id": "parabank.request_loan",
+  "version": 1,
+  "description": "Recorded from goal: Apply for a loan with amount '{amount}' and down payment '{down_payment}'. Select an account from the dropdown using select_option even if only one option exists, click Apply Now, and wait for 'Loan Request Processed' to appear. When calling done, include 'loan_status' and, if approved, 'new_account_id'. When you read 'new_account_id', always pass element_name set to 'Your new account number:' in the read tool call, so the value can be resolved to a stable element for later replay.\n",
+  "target_app": "parabank",
+  "entry_url": "http://localhost:8080/parabank/requestloan.htm",
+  "inputs": [
+    {
+      "name": "amount",
+      "description": "",
+      "required": true,
+      "example": "1000"
+    },
+    {
+      "name": "down_payment",
+      "description": "",
+      "required": true,
+      "example": "10"
+    },
+    {
+      "name": "from_account_id",
+      "description": "",
+      "required": true,
+      "example": "12567"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "loan_status",
+      "description": "",
+      "source_label": "loan_status",
+      "derived_from_outcome": true
+    },
+    {
+      "name": "new_account_id",
+      "description": "",
+      "source_label": "new_account_id",
+      "derived_from_outcome": false
+    }
+  ],
+  "steps": [
+    {
+      "step_num": 1,
+      "action": "type_text",
+      "target": {
+        "strategy": "css",
+        "value": "#amount",
+        "role": "textbox",
+        "expected_name": "Loan Amount: $",
+        "fallbacks": [
+          {
+            "strategy": "role_name",
+            "value": "Loan Amount: $",
+            "role": "textbox",
+            "expected_name": "Loan Amount: $",
+            "fallbacks": []
+          }
+        ]
+      },
+      "value": "{amount}",
+      "read_label": null,
+      "description": "Type into 'Loan Amount: $'"
+    },
+    {
+      "step_num": 2,
+      "action": "type_text",
+      "target": {
+        "strategy": "css",
+        "value": "#downPayment",
+        "role": "textbox",
+        "expected_name": "Down Payment: $",
+        "fallbacks": [
+          {
+            "strategy": "role_name",
+            "value": "Down Payment: $",
+            "role": "textbox",
+            "expected_name": "Down Payment: $",
+            "fallbacks": []
+          }
+        ]
+      },
+      "value": "{down_payment}",
+      "read_label": null,
+      "description": "Type into 'Down Payment: $'"
+    },
+    {
+      "step_num": 3,
+      "action": "select_option",
+      "target": {
+        "strategy": "css",
+        "value": "#fromAccountId",
+        "role": "combobox",
+        "expected_name": "From account #:",
+        "fallbacks": [
+          {
+            "strategy": "role_name",
+            "value": "From account #:",
+            "role": "combobox",
+            "expected_name": "From account #:",
+            "fallbacks": []
+          }
+        ]
+      },
+      "value": "{from_account_id}",
+      "read_label": null,
+      "description": "Select '12567' in 'From account #:'"
+    },
+    {
+      "step_num": 4,
+      "action": "click",
+      "target": {
+        "strategy": "role_name",
+        "value": "Apply Now",
+        "role": "button",
+        "expected_name": "Apply Now",
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "value": "Apply Now",
+            "role": null,
+            "expected_name": "Apply Now",
+            "fallbacks": []
+          },
+          {
+            "strategy": "css",
+            "value": "div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(2) > div > div:nth-of-type(1) > form > table > tbody > tr:nth-of-type(4) > td:nth-of-type(2) > input",
+            "role": "button",
+            "expected_name": "Apply Now",
+            "fallbacks": []
+          }
+        ]
+      },
+      "value": null,
+      "read_label": null,
+      "description": "Click 'Apply Now'"
+    },
+    {
+      "step_num": 5,
+      "action": "read",
+      "target": null,
+      "value": null,
+      "read_label": "loan_status",
+      "description": "Read 'loan_status'"
+    },
+    {
+      "step_num": 6,
+      "action": "read",
+      "target": {
+        "strategy": "css",
+        "value": "#newAccountId",
+        "role": "link",
+        "expected_name": "Your new account number:",
+        "fallbacks": [
+          {
+            "strategy": "role_name",
+            "value": "Your new account number:",
+            "role": "link",
+            "expected_name": "Your new account number:",
+            "fallbacks": []
+          },
+          {
+            "strategy": "text",
+            "value": "Your new account number:",
+            "role": null,
+            "expected_name": "Your new account number:",
+            "fallbacks": []
+          }
+        ]
+      },
+      "value": null,
+      "read_label": "new_account_id",
+      "description": "Read 'new_account_id'"
+    }
+  ],
+  "checkpoint": {
+    "kind": "text_visible",
+    "expected": "Congratulations, your loan has been approved."
+  },
+  "created_at": "2026-09-24T13:55:27.897934+00:00",
+  "outcome_rules": [
+    {
+      "name": "insufficient_funds_for_down_payment",
+      "kind": "text_visible",
+      "expected": "You do not have sufficient funds for the given down payment.",
+      "description": ""
+    },
+    {
+      "name": "insufficient_funds_and_down_payment",
+      "kind": "text_visible",
+      "expected": "We cannot grant a loan in that amount with your available funds and down payment.",
+      "description": ""
+    },
+    {
+      "name": "insufficient_funds",
+      "kind": "text_visible",
+      "expected": "We cannot grant a loan in that amount with your available funds.",
+      "description": ""
+    },
+    {
+      "name": "insufficient_down_payment",
+      "kind": "text_visible",
+      "expected": "We cannot grant a loan in that amount with the given down payment.",
+      "description": ""
+    }
+  ],
+  "risk_level": "risky"
+}
