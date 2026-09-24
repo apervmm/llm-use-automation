@@ -2,9 +2,12 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Literal, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from surface.types import ElementRef
+
+
+
 
 
 class ParamType(str, Enum):
@@ -77,4 +80,11 @@ class Capability(BaseModel):
     outcome_rules: list[OutcomeRule] = Field(default_factory=list)
 
     risk_level: RiskLevel = RiskLevel.SAFE
+
+    @model_validator(mode="after")
+    def _unique_step_nums(self):
+        nums = [s.step_num for s in self.steps]
+        if len(nums) != len(set(nums)):
+            raise ValueError(f"Duplicate step_num in {self.capability_id}: {nums}")
+        return self
 

@@ -28,7 +28,7 @@ def replay(
 
     full_id = qualify(capability.capability_id, capability.target_app)
     is_risky = capability.risk_level == RiskLevel.RISKY or Allowlist().is_risky(full_id)
-    
+
     if is_risky and not confirmed:
         if on_escalation:
             safe_inputs = redact_any(dict(inputs))
@@ -83,7 +83,8 @@ def replay(
 
     read_values: dict[str, str] = {}
     step_index = 0
-    steps = capability.steps
+    # steps = capability.steps
+    steps = sorted(capability.steps, key=lambda s: s.step_num)  
 
 
     # for step in capability.steps:
@@ -196,7 +197,7 @@ def replay(
                 EscalationReason.REPLAY_FAILURE,
                 capability.capability_id,
                 f"Checkpoint not met: {capability.checkpoint.kind}={capability.checkpoint.expected}",
-                current_step=capability.steps[-1].step_num if capability.steps else None,
+                current_step=steps[-1].step_num if steps else None,
             )
             
             decision, escalation_record = on_escalation(req, handoff_state)
@@ -216,7 +217,7 @@ def replay(
         return ReplayResult(
             status=ReplayStatus.FAILURE,
             capability_id=capability.capability_id,
-            failed_step=capability.steps[-1].step_num if capability.steps else None,
+            failed_step=steps[-1].step_num if steps else None,
             expected=f"{capability.checkpoint.kind}={capability.checkpoint.expected}",
             observed=session.get_url(),
             error="Checkpoint not met and no matching business outcome found.",

@@ -4,6 +4,7 @@ from safety.allowlist import Allowlist
 from safety.redaction import redact
 from .store import qualify
 
+import re
 
 
 def record(
@@ -22,6 +23,12 @@ def record(
 
     allowlist = allowlist or Allowlist()
     steps = _build_steps(run_result.transcript, param_map)
+
+    unmatched = [name for name in param_map.values() if not any(s.value and f"{{{name}}}" in s.value for s in steps)]
+    if unmatched: 
+        raise ValueError(
+            f"Param(s) {unmatched} never matched a typed/selected value - check the env vars are set and the goal uses the same literals.")
+    description = _template(description or f"Recorded capability for goal: {run_result.goal}", param_map)
 
     inputs = [
         InputParam(
@@ -119,3 +126,10 @@ def _build_steps(transcript: list[TranscriptStep], param_map: dict[str, str]) ->
 
 def _parameterize(literal: str, param_map: dict[str, str]) -> str:
     return f"{{{param_map[literal]}}}" if literal in param_map else literal
+
+
+def _template(text: str, param_map: dict[str, str]) -> str:
+    """Replace recorded literals with {param} placeholders, longest first."""
+    for literal in sorted(param_map, key=len, reverse=True):
+        text = re.sub(rf"(?<!\w){re.escape(literal)}(?!\w)", "{" + param_map[literal] + "}", text)
+    return text

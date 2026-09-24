@@ -117,8 +117,8 @@ def discover(config_path, max_steps):
             result.success = False
             result.stop_reason = "checkpoint_not_met_despite_done"
         
-
-    log_discovery(result, evidence_dir, run_id=run_id)
+    sensitive = [lit for lit, name in config.get("params", {}).items() if name.lower() in ("password", "pin", "ssn")]
+    log_discovery(result, evidence_dir, sensitive_values=sensitive, run_id=run_id)
     click.echo(f"Discovery {'succeeded' if result.success else 'failed'} ({result.stop_reason})")
 
 

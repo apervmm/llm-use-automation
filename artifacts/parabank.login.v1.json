@@ -1,7 +1,7 @@
 {
-  "capability_id": "login",
+  "capability_id": "parabank.login",
   "version": 1,
-  "description": "Recorded from goal: Log in with username 'john' and password 'demo'. When calling done, include output keys 'login_succeeded' and 'message'.\n",
+  "description": "Recorded from goal: Log in with username '{username}' and password '{password}'. When calling done, include output keys 'login_succeeded' and 'message'.\n",
   "target_app": "parabank",
   "entry_url": "http://localhost:8080/parabank/index.htm",
   "inputs": [
@@ -9,7 +9,7 @@
       "name": "username",
       "description": "",
       "required": true,
-      "example": "${PARABANK_USERNAME}"
+      "example": "john"
     },
     {
       "name": "password",
@@ -51,7 +51,7 @@
           }
         ]
       },
-      "value": "john",
+      "value": "{username}",
       "read_label": null,
       "description": "Type into 'Username'"
     },
@@ -73,7 +73,7 @@
           }
         ]
       },
-      "value": "demo",
+      "value": "{password}",
       "read_label": null,
       "description": "Type into 'Password'"
     },
@@ -111,7 +111,7 @@
     "kind": "url_contains",
     "expected": "/overview.htm"
   },
-  "created_at": "2026-09-24T13:12:06.499062+00:00",
+  "created_at": "2026-09-24T13:33:14.589540+00:00",
   "outcome_rules": [
     {
       "name": "invalid_credentials",
