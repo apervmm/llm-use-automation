@@ -106,16 +106,9 @@ def replay(
     while step_index < len(steps):
         step = steps[step_index]
         value = _substitute(step.value, inputs) if step.value else None
-        result = _execute_step(session, step, value)
-
-        dialogs = session.pop_dialogs()
-        if dialogs and result is not None and result.success:
-            result = ActionResult(
-                False, 
-                result.action, 
-                result.target_description,
-                error=f"Unexpected dialog(s) dismissed: {dialogs}"
-            )
+        result = _run_step(session, step, value)
+        if result is not None and result.policy_violation:
+            return _policy_failure(capability, step, result, inputs, escalations)
 
         if result is not None and result.policy_violation:
             return ReplayResult(
@@ -174,7 +167,12 @@ def replay(
 
 
                 if decision == OperatorDecision.RESUME:
-                    retry_result = _execute_step(session, step, value)
+                    session.pop_dialogs()
+                    retry_result = _run_step(session, step, value)
+
+                    if retry_result is not None and retry_result.policy_violation:
+                        return _policy_failure(capability, step, retry_result, inputs, escalations)
+                    
                     if retry_result is not None and retry_result.success:
                         step_index += 1
                         continue
@@ -389,6 +387,27 @@ def _execute_step(session: BrowserSession, step, value: str | None):
         return session.read_text(step.target, description=step.description)
     return None
 
+
+def _run_step(session: BrowserSession, step, value: str | None):
+    """Execute one step; a step that caused a JS dialog counts as failed."""
+    result = _execute_step(session, step, value)
+    dialogs = session.pop_dialogs()
+    if dialogs and result is not None and result.success:
+        result = ActionResult(False, result.action, result.target_description,
+                              error=f"Unexpected dialog(s) dismissed: {dialogs}")
+    return result
+
+
+def _policy_failure(capability: Capability, step, result, inputs: dict, escalations: list) -> ReplayResult:
+    return ReplayResult(
+        status=ReplayStatus.FAILURE,
+        capability_id=capability.capability_id,
+        failed_step=step.step_num,
+        expected=_fill(step.description, inputs),
+        observed=result.error,
+        error=f"Policy violation at step {step.step_num}: {result.error}",
+        escalations=escalations,
+    )
 
 def _try_extract_account_context(session: BrowserSession, inputs: dict) -> str:
     """Best-effort: if the current page already shows account balances (e.g.
