@@ -107,6 +107,17 @@ def replay(
         value = _substitute(step.value, inputs) if step.value else None
         result = _execute_step(session, step, value)
 
+        if result is not None and result.policy_violation:
+            return ReplayResult(
+                status=ReplayStatus.FAILURE,
+                capability_id=capability.capability_id,
+                failed_step=step.step_num,
+                expected=step.description,
+                observed=result.error,
+                error=f"Policy violation at step {step.step_num}: {result.error}",
+                escalations=escalations,
+            )
+
         # if step.action == StepAction.READ:
         #     if result is not None and result.success:
         #         read_values[step.read_label] = result.value

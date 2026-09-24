@@ -1,0 +1,18 @@
+{
+  "run_type": "replay",
+  "run_id": "6b23b0d7bb09",
+  "timestamp": "20260924T205407Z",
+  "inputs": {
+    "username": "john",
+    "password": "[REDACTED]"
+  },
+  "status": "failure",
+  "capability_id": "parabank.login",
+  "outputs": {},
+  "outcome_name": null,
+  "failed_step": 3,
+  "expected": "Click 'Log In'",
+  "observed": "Route '/parabank/overview.htm' is not in the allowed routes.",
+  "error": "Policy violation at step 3: Route '/parabank/overview.htm' is not in the allowed routes.",
+  "escalations": []
+}

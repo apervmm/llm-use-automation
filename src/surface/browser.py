@@ -14,6 +14,8 @@ class BrowserSession:
         self.browser: Browser = self._pw.chromium.launch(headless=headless)
         self.page: Page = self.browser.new_page()
         self.allowlist = allowlist or Allowlist()
+        self._blocked_nav: str | None = None
+        self.page.route("**/*", self._guard_navigation)
 
     def __enter__(self):
         return self
@@ -63,6 +65,23 @@ class BrowserSession:
         
         return candidate.expected_name.strip().lower() in actual.strip().lower()
     
+
+    def _guard_navigation(self, route, request):
+        """Abort main-page navigations to URLs outside the allowlist, before they load."""
+        if request.is_navigation_request() and request.frame.parent_frame is None:
+            try:
+                self.allowlist._check_url(request.url)
+            except PolicyViolation as e:
+                self._blocked_nav = str(e)
+                return route.fulfill(status=204, body="")
+        route.continue_()
+
+
+    def _raise_if_blocked(self):
+        if self._blocked_nav:
+            msg, self._blocked_nav = self._blocked_nav, None
+            raise PolicyViolation(msg)
+        
 
     # esolving a locator descriptor to a live locator
     def _resolve(self, ref: ElementRef):
@@ -122,7 +141,7 @@ class BrowserSession:
             self.allowlist._check_url(self.page.url)
             return ActionResult(True, "navigate",  url, duration_ms=int((time.time() - start) * 1000))
         except PolicyViolation as e:
-            return ActionResult(False, "navigate", url, error=str(e))
+            return ActionResult(False, "navigate", url, error=str(e), policy_violation=True)
         except PWError as e:
             return ActionResult(False, "navigate", url, error=str(e))
         
@@ -131,7 +150,7 @@ class BrowserSession:
         try:
             self.allowlist.check_action("read", url=self.page.url)
         except PolicyViolation as e:
-            return ActionResult(False, "read", description or ref.value, error=str(e))
+            return ActionResult(False, "read", description or ref.value, error=str(e), policy_violation=True)
 
         start = time.time()
         try:
@@ -143,16 +162,21 @@ class BrowserSession:
 
     #  actions 
     def click(self, ref: ElementRef, description: str = "") -> ActionResult:
+        label = description or ref.value
         try:
             self.allowlist.check_action("click", url=self.page.url)
         except PolicyViolation as e:
-            return ActionResult(False, "click", description or ref.value, error=str(e))
+            return ActionResult(False, "click", description or ref.value, error=str(e), policy_violation=True)
         
         start = time.time()
         try:
             self._resolve(ref).click(timeout=5000)
+            self.page.wait_for_timeout(250) 
+            self._raise_if_blocked()
             self.allowlist._check_url(self.page.url)
             return ActionResult(True, "click", description or ref.value, duration_ms=int((time.time() - start) * 1000))
+        except PolicyViolation as e:
+            return ActionResult(False, "click", label, error=str(e), policy_violation=True)
         except Exception as e:
             return ActionResult(False, "click", description or ref.value, error=str(e))
         
