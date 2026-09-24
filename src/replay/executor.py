@@ -7,6 +7,7 @@ from safety.redaction import redact_any
 from replay.checkpoint import checkpoint_met
 from safety.allowlist import Allowlist
 from artifact.store import qualify
+from surface.types import ActionResult
 
 _PLACEHOLDER = re.compile(r"\{(\w+)\}")
 
@@ -106,6 +107,15 @@ def replay(
         step = steps[step_index]
         value = _substitute(step.value, inputs) if step.value else None
         result = _execute_step(session, step, value)
+
+        dialogs = session.pop_dialogs()
+        if dialogs and result is not None and result.success:
+            result = ActionResult(
+                False, 
+                result.action, 
+                result.target_description,
+                error=f"Unexpected dialog(s) dismissed: {dialogs}"
+            )
 
         if result is not None and result.policy_violation:
             return ReplayResult(

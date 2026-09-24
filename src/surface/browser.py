@@ -16,6 +16,8 @@ class BrowserSession:
         self.allowlist = allowlist or Allowlist()
         self._blocked_nav: str | None = None
         self.page.route("**/*", self._guard_navigation)
+        self._dialogs: list[str] = []
+        self.page.on("dialog", self._on_dialog)
 
     def __enter__(self):
         return self
@@ -81,7 +83,19 @@ class BrowserSession:
         if self._blocked_nav:
             msg, self._blocked_nav = self._blocked_nav, None
             raise PolicyViolation(msg)
-        
+    
+
+    def _on_dialog(self, dialog):
+        """Record any JS dialog and dismiss it (never auto-accept)."""
+        self._dialogs.append(f"{dialog.type}: {dialog.message}")
+        dialog.dismiss()
+
+
+    def pop_dialogs(self) -> list[str]:
+        """Return dialogs seen since the last call, and clear the list."""
+        seen, self._dialogs = self._dialogs, []
+        return seen
+
 
     # esolving a locator descriptor to a live locator
     def _resolve(self, ref: ElementRef):
