@@ -203,7 +203,7 @@ class BrowserSession:
         try:
             self.allowlist.check_action("select_option", url=self.page.url)
         except PolicyViolation as e:
-            return ActionResult(False, "select_option", label, error=str(e))
+            return ActionResult(False, "select_option", label, error=str(e), policy_violation=True)
 
         # loc = self._resolve(ref) 
         start = time.time()
@@ -227,7 +227,7 @@ class BrowserSession:
                 value=value
             )
         except PolicyViolation as e:
-            return ActionResult(False, "select_option", label, error=str(e))
+            return ActionResult(False, "select_option", label, error=str(e), policy_violation=True)
         except Exception as e:
             diagnosis = self._diagnose_select_failure(loc, value)   # loc, not ref
             return ActionResult(
@@ -238,22 +238,11 @@ class BrowserSession:
         )
 
 
-        # try:
-        #     # loc.select_option(value=value, timeout=5000)
-        #     # self.allowlist._check_url(self.page.url)  
-        #     return ActionResult(True, "select_option", description or ref.value, duration_ms=int((time.time() - start) * 1000), value=value)
-        # except PolicyViolation as e:
-        #     return ActionResult(False, "select_option", description or ref.value, error=str(e))
-        # except Exception as e:
-        #     diagnosis = self._diagnose_select_failure(ref, value)
-        #     return ActionResult(False, "select_option", description or ref.value, error=f"{diagnosis} | raw error: {type(e).__name__}: {e}")
-
-
     def type_text(self, ref: ElementRef, text: str, description: str = "") -> ActionResult:
         try:
             self.allowlist.check_action("type_text", url=self.page.url)
         except PolicyViolation as e:
-            return ActionResult(False, "type", description or ref.value, error=str(e))
+            return ActionResult(False, "type", description or ref.value, error=str(e), policy_violation=True)
         
         start = time.time()
         try:
