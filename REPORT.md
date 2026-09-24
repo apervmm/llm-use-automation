@@ -192,7 +192,7 @@ class Capability(BaseModel):
 
 ## 3. Determinism & error handling
 
-#### Deterministic replay
+### Deterministic replay
 Replay is deterministic because nothing is decided at runtime. There are three points where a decision could happen, and each one is fixed in advance: 
 1. **Which actions to take.** Replay does not call the LLM. It runs `capability.steps` in `step_num` order with the recorded targets and values. The only thing that changes between runs is the `{param}` placeholders, which `_substitute()` fills from the caller's inputs. 
 2. **Whether the inputs are valid.** `_validate_inputs()` rejects missing required inputs, and `_substitute()` rejects unknown parameters, before any UI action. A bad input stops the run before it starts, instead of partway through. 
@@ -213,7 +213,7 @@ However, there's an issue with `Fallbacks` that could match the wrong element. S
 This way replay either acts on the right element or stops with a clear error. 
 
 
-#### Result types
+### Result types
 Since the application's data can change the result, replay needs to tell the caller what kind of result it got. Every run ends in one of three states: 
 1. **`SUCCESS`**: the checkpoint was met and outputs are returned. Example: loan approved. 
 2. **`BUSINESS_OUTCOME`**: the app gave a known non-success answer. This is a valid result, not an error. Examples: `invalid_credentials`, `insufficient_funds`. 
@@ -228,7 +228,7 @@ Checking outcome rules before declaring failure is what keeps "loan denied" from
 
 A `FAILURE` includes `failed_step`, `expected`, `observed`, and `error`, plus a screenshot if an escalation was raised. This is enough to see where the run stopped and why.
 
-#### Runtime conditions
+### Runtime conditions
 The result types above only work if each runtime problem is sent to the right one. Each condition is handled as follows: 
 1. **Missing or unknown input:** rejected before any UI action. The caller gets an error.
 2. **Slow render or redirect:** each locator waits up to 3s, and the checkpoint is polled every 250ms for up to 5s. Replay continues. 
@@ -241,7 +241,7 @@ The result types above only work if each runtime problem is sent to the right on
 
 The first three are recovered automatically. The rest either return a known result or stop with a clear error.
 
-#### Limits 
+### Limits 
 Some conditions are not handled automatically yet. They still don't pass silently: each one causes a failed step and goes to an operator. 
 1. **Not automated:** dismissing unexpected dialogs, retrying failed page loads, detecting session timeouts. The fix is to declare known interstitials in the artifact with a recovery action, the same way `outcome_rules` declare known results. 
 2. **UI drift:** fallbacks and name checks handle small changes, such as a new id or a moved button. Larger changes fail at a specific step instead of acting on the wrong element. 
@@ -249,8 +249,132 @@ Some conditions are not handled automatically yet. They still don't pass silentl
 
 
 ## 4. Heterogeneity & multi-tenant
-*how your design extends to legacy web and desktop surfaces, and to reuse across institutions running the same app (see 3.7).*
 
+The system is built against one surface (ParaBank in a browser) and one
+tenant. Multi-surface and multi-tenant support are not implemented, but
+the core abstractions were designed so that adding them extends the
+system rather than replacing parts of it.
+
+### The seam between surface and flow
+To support other surfaces, the recorded flow must not depend on how a
+surface is driven. The current design splits the system into two parts:
+
+1. **The flow** (the artifact): `steps`, `inputs`, `outputs`,
+   `checkpoint`, and `outcome_rules`. It describes *what* to do: "type
+   `{username}` into the Username textbox, click Log In, expect
+   `/overview.htm`."
+2. **The surface** (`BrowserSession` and `perception.py`): turns each
+   step into a real action. It handles *how*: finding elements, clicking,
+   typing, reading text, taking screenshots.
+
+Agent and Replay call the surface through five actions (`click`,
+`type_text`, `select_option`, `read_text`, `goto`) plus `snapshot()`.
+Each returns an `ActionResult`. A new surface would only need to
+implement these methods. The artifact schema, replay order, and result
+types would stay the same.
+
+The one surface-specific part of the artifact is the locator.
+`ElementRef` stores the kind of locator separately from its value, so
+each surface can use its own kinds without changing the schema.
+
+### Legacy web apps
+Legacy web apps use the same surface, but their markup is harder to
+target. The current design handles some of these cases but not all:
+
+1. **No ids or test IDs:** already handled. The CSS locator falls back
+   from id to `name` attribute to a positional path, with `role_name`
+   and `text` as fallbacks. ParaBank's Log In button has no id or name,
+   so it uses a positional path, which is more brittle to layout changes.
+2. **Framesets and iframes:** not handled yet. `_to_playwright_locator()`
+   searches only the main page. The fix is to add a frame path to
+   `ElementRef`, so the locator is resolved inside the right frame.
+3. **Elements with no accessible name:** some legacy controls have no
+   label, and `perception.py` already falls back to nearby text. A
+   screenshot + coordinates strategy could be added as one more
+   `LocatorStrategy`.
+
+### Desktop apps
+A desktop app needs a new surface class, not a new artifact:
+
+1. **`DesktopSession`** implements the same five actions using an OS
+   accessibility API (e.g. UI Automation on Windows).
+2. **`snapshot()`** reads the accessibility tree instead of the DOM and
+   returns the same `PageState`: interactive elements, visible text,
+   screenshot.
+3. **Locators** use `role_name` (an accessible role and name, e.g.
+   `button` / "Log In"). It comes from the accessibility tree, which
+   exists on both web pages and desktop apps (Windows UI Automation,
+   macOS Accessibility). This is why `role_name` is kept in the fallback
+   chain on the web: it is the strategy that carries over to desktop,
+   where it becomes the primary locator. CSS and XPath are not generated
+   for desktop steps.
+4. **`checkpoint` and `outcome_rules`** use `text_visible` as they do
+   now. `url_contains` would need a desktop equivalent, such as the
+   window title.
+
+Screenshot + coordinates is possible as a final fallback for controls
+with no accessibility data, but it would be the least stable option. A
+step that can only be found by coordinates should escalate to a human
+rather than click blindly.
+
+### Multi-tenant reuse
+Many tenants run the same vendor product with different branding, URLs,
+and settings. Recording the same flow for each tenant would repeat most
+of the work. Instead, the current artifact becomes a shared base, and
+each tenant can add a small override file:
+
+1. **Base artifact:** recorded once per vendor product, e.g.
+   `<vendorX>.<capability>.v<N>`. It holds the steps, locators, inputs,
+   outputs, and rules that are the same for every tenant.
+2. **Tenant override:** a small file per tenant that changes only what
+   differs, such as the base URL, a relabeled button name, or a
+   different error message in `outcome_rules`. An override cannot add or
+   remove steps; a tenant with a different flow gets its own artifact.
+
+At replay time, the override is merged onto the base artifact. A tenant
+with no differences needs no override. A base artifact is not trusted on
+a new tenant until a test replay passes; if it fails, the tenant gets an
+override or a new discovery run instead of a silently broken capability.
+
+Part of this already exists: the base URL comes from
+`PARABANK_BASE_URL`, so the same capability config runs against
+localhost or the public demo. The saved artifact still stores the full
+`entry_url`, so the next step is to store a relative path and resolve
+the host per tenant.
+
+### Detecting drift
+Tenants upgrade vendor versions at different times, so an artifact that
+works for one tenant can break for another. Drift shows up in replay
+results:
+
+1. **Fallback used:** the primary locator failed, but a fallback worked.
+   This is an early sign of a markup change. Replay would log which
+   candidate was used.
+2. **Step failure at the same step across runs** for one tenant, while
+   other tenants pass. This points to a tenant-specific change, not a
+   general one.
+3. **New unmatched messages:** the checkpoint fails and no
+   `outcome_rule` matches. This often means the app shows a message the
+   artifact doesn't know about.
+
+When drift is detected, discovery is re-run for that tenant. The
+differences are saved as a tenant override, or as a new base version if
+many tenants are affected. Tenants that have not upgraded keep using the
+previous version.
+
+### Limits
+This section is mostly design. What is built and what is not:
+
+1. **Built:** the surface/flow split, `ElementRef` with a locator kind
+   and fallback chain (CSS primary, `role_name` and `text` fallbacks),
+   the shared `ActionResult` and `PageState` types, and base-URL
+   switching through an environment variable.
+2. **Not built:** a surface interface class, desktop or iframe support,
+   tenant overrides, test replays for new tenants, and drift logging.
+3. **Known leak:** `_check_outcomes()` and the `element_visible`
+   checkpoint call `session.page` directly. These are Playwright calls
+   outside the surface and would need to move into `BrowserSession`
+   before a second surface could be added.
 
 
 ## 5. Escalation & handoff
