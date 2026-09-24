@@ -146,22 +146,56 @@ class BrowserSession:
         
     def select_option(self, ref: ElementRef, value: str, description: str = "") -> ActionResult:
         # loc = self._resolve(ref) 
+        label = description or ref.value
+
+        # 1. Policy check 
         try:
             self.allowlist.check_action("select_option", url=self.page.url)
         except PolicyViolation as e:
-            return ActionResult(False, "select_option", description or ref.value, error=str(e))
+            return ActionResult(False, "select_option", label, error=str(e))
 
-        loc = self._resolve(ref) 
+        # loc = self._resolve(ref) 
         start = time.time()
+
+
         try:
-            loc.select_option(value=value, timeout=5000)
-            self.allowlist._check_url(self.page.url)  
-            return ActionResult(True, "select_option", description or ref.value, duration_ms=int((time.time() - start) * 1000), value=value)
-        except PolicyViolation as e:
-            return ActionResult(False, "select_option", description or ref.value, error=str(e))
+            loc = self._resolve(ref)
         except Exception as e:
-            diagnosis = self._diagnose_select_failure(ref, value)
-            return ActionResult(False, "select_option", description or ref.value, error=f"{diagnosis} | raw error: {type(e).__name__}: {e}")
+            return ActionResult(False, "select_option", label, error=str(e))
+
+                # 3. Wait for the wanted option to load, then select it
+        try:
+            loc.locator(f'option[value="{value}"]').wait_for(state="attached", timeout=5000)
+            loc.select_option(value=value, timeout=5000)
+            self.allowlist._check_url(self.page.url)
+            return ActionResult(
+                True, 
+                "select_option", 
+                label,
+                duration_ms=int((time.time() - start) * 1000), 
+                value=value
+            )
+        except PolicyViolation as e:
+            return ActionResult(False, "select_option", label, error=str(e))
+        except Exception as e:
+            diagnosis = self._diagnose_select_failure(loc, value)   # loc, not ref
+            return ActionResult(
+                False, 
+                "select_option", 
+                label,
+                error=f"{diagnosis} | raw error: {type(e).__name__}: {e}"
+        )
+
+
+        # try:
+        #     # loc.select_option(value=value, timeout=5000)
+        #     # self.allowlist._check_url(self.page.url)  
+        #     return ActionResult(True, "select_option", description or ref.value, duration_ms=int((time.time() - start) * 1000), value=value)
+        # except PolicyViolation as e:
+        #     return ActionResult(False, "select_option", description or ref.value, error=str(e))
+        # except Exception as e:
+        #     diagnosis = self._diagnose_select_failure(ref, value)
+        #     return ActionResult(False, "select_option", description or ref.value, error=f"{diagnosis} | raw error: {type(e).__name__}: {e}")
 
 
     def type_text(self, ref: ElementRef, text: str, description: str = "") -> ActionResult:
