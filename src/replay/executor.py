@@ -315,7 +315,7 @@ def _extract_outputs(
         elif field.source_label in read_values:
             outputs[field.name] = read_values[field.source_label]
         elif "succeed" in field.name.lower() or "success" in field.name.lower():
-            outputs[field.name] = "true"
+            outputs[field.name] = "true" if status == ReplayStatus.SUCCESS else "false"
         else:
             outputs[field.name] = None
     return outputs
