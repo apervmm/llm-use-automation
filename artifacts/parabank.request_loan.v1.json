@@ -24,7 +24,7 @@
       "type": "number",
       "description": "",
       "required": true,
-      "example": "12678"
+      "example": "12345"
     }
   ],
   "outputs": [
@@ -181,7 +181,7 @@
     "kind": "text_visible",
     "expected": "Congratulations, your loan has been approved."
   },
-  "created_at": "2026-09-24T22:45:21.932607+00:00",
+  "created_at": "2026-09-25T00:02:49.684993+00:00",
   "outcome_rules": [
     {
       "name": "insufficient_funds_for_down_payment",
