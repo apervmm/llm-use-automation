@@ -33,9 +33,9 @@ The public ParaBank `parabank.parasoft.com` is a shared sandbox that resets peri
 
 ## Demo path
 
+### 1. Discovery: 
 The loan capability replays the login capability first (auth_capability_id in capabilities/loan.yaml), so record the login first.
 
-### 1. Discovery: 
 To create an LLM discovery artifact and evidence to log in
 ```bash
 python -m src.cli discover --config capabilities/login.yaml
