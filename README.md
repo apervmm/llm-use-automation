@@ -49,15 +49,15 @@ The project uses two live services: the Anthropic API (for the LLM agent) and Pa
 ### 1. Discovery: 
 The loan capability replays the login capability first (auth_capability_id in capabilities/loan.yaml), so record the login first.
 
-1.1 To create an LLM discovery artifact and evidence to log in
-```bash
-python -m src.cli discover --config capabilities/login.yaml
-```
+* 1.1 To create an LLM discovery artifact and evidence to log in
+   ```bash
+   python -m src.cli discover --config capabilities/login.yaml
+   ```
 
-1.2 To create an LLM discovery artifact and evidence of requesting loan
-```bash
-python -m src.cli discover --config capabilities/loan.yaml
-```
+* 1.2 To create an LLM discovery artifact and evidence of requesting loan
+   ```bash
+   python -m src.cli discover --config capabilities/loan.yaml
+   ```
 
 In the `/artifacts/` folder, you should see new populated artifacts with new versions.
 
