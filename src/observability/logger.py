@@ -85,7 +85,10 @@ def log_replay(
         "error": result.error,
         "escalations": result.escalations,
     }
-    summary = redact_any(summary)
+
+    secrets = {str(v) for k, v in inputs.items() if k.lower() in ("password", "pin", "ssn") and v}
+    accounts = {str(v) for k, v in {**inputs, **(result.outputs or {})}.items() if "account" in k.lower() and str(v).isdigit()}
+    summary = redact_any(summary, sensitive_values=secrets, masked_values=accounts)
 
     path = out_dir / "result.json"
     path.write_text(json.dumps(summary, indent=2))

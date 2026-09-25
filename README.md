@@ -126,3 +126,12 @@ In the `/artifacts/` folder, you should see new populated artifacts with new ver
 Each run writes to its own folder under `/evidence/`:
 - `discovery_<capability>_<time>_<run_id>/`: the agent's full transcript (result.json, credentials redacted) and a screenshot of every step.
 - `replay_<capability>_<time>_<run_id>/`: the result (result.json: status, outputs, failed step, expected vs. observed, escalations) and a screenshot for each escalation.
+
+
+
+## Tests
+
+There are 48 unit tests for inputs, outcomes, policy, recorder, redaction, schema and store.
+```
+pytest -v
+```
