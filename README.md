@@ -5,7 +5,7 @@
       ```
       python3 -m venv .venv && source .venv/bin/activate
       ```
-   * Windows PS:
+   * Windows PowerShell:
      ```
      python -m venv .venv
      .venv\Scripts\Activate.ps1
@@ -26,7 +26,7 @@
    PARABANK_USERNAME=john
    PARABANK_PASSWORD=demo
    ```
-   Add your own anthropic key in `ANTHROPIC_API_KEY` 
+   Add your own Anthropic key in `ANTHROPIC_API_KEY` 
 
 ## Running ParaBank locally with Docker (recommended)
 The public ParaBank `parabank.parasoft.com` is a shared sandbox that resets periodically and can return server-side errors unrelated to this project. For reliable, reproducible runs, I would recommend using a local Docker instance
@@ -39,6 +39,7 @@ The public ParaBank `parabank.parasoft.com` is a shared sandbox that resets peri
    ```bash
       curl -s -L http://localhost:8080/parabank/initializeDB.htm > /dev/null
    ```
+  > Note: For Windows PowerShell users, this command might look a little different
 3. Use the default user from `.env.example` (`john` / `demo`), which exists after the database reset in step 2. The loan replays below use account `13344`, one of this user's default accounts.
 
 4. To use your own user instead, register at `http://localhost:8080/parabank/register.htm` and set in `.env`:
@@ -66,7 +67,7 @@ The loan capability replays the login capability first (auth_capability_id in ca
    python -m src.cli discover --config capabilities/login.yaml
    ```
 
-* 1.2 To create an LLM discovery artifact and evidence of requesting loan
+* 1.2 To create an LLM discovery artifact and evidence of requesting a loan
    ```bash
    python -m src.cli discover --config capabilities/loan.yaml
    ```
