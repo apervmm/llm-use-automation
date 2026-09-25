@@ -448,7 +448,7 @@ Partially discussed in Section 5, Capabilities that move money or open accounts 
 1. Discovery doesn't need approval. The agent completes the task itself, so discovering the loan capability requested a real loan. Discovery of risky capabilities should need approval or run only in a test environment.
 2. Page content is sent to the AI model. During discovery, names, balances, account numbers, and the login credentials go to Anthropic's API. 
 3. Screenshots aren't redacted. They show names, balances, and account numbers.
-4. Some sensitive data isn't recognized. ParaBank's 5-digit account numbers, names, and addresses appear in logs.
+4. Only the run's own account numbers are masked. Account numbers the run uses (its inputs and outputs) keep only their last 2 digits in logs (`***44`). Other account numbers that appear in page text, such as the options listed in a dropdown error or the account table in discovery logs, stay visible. Names and addresses aren't recognized either.
 5. Risk depends on the capability's name. A risky capability with an unexpected name is treated as safe.
 
 ## 7. Cuts
