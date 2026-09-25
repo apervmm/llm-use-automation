@@ -45,30 +45,9 @@ Based on the assignment specification, the system has to have two distinct flows
   Each run writes its evidence to its own folder under `/evidence/`.
 
 **Key decisions and trade-offs:**
-
-- **A fixed action set, via tool-calling, over free-text actions.**
-  Every turn, the model must return one call from a closed set
-  (`click`, `type_text`, `navigate`, `read`, `select_option`, `done`)
-  rather than a free-form response. This makes actions reliably
-  parseable and keeps the transcript close to the artifact schema's
-  own shape, at the cost of flexibility like drag-and-drop, etc.
-- **Surface as the one seam both Agent and Replay go through.**
-  Neither component talks to Playwright or raw HTML directly — both
-  act only through `Surface`'s methods and see only `PageState`/
-  `ElementRef`. This is deliberate: it's the seam that would let a
-  future desktop or legacy-app surface (Section 3.7) be swapped in by
-  rewriting `surface/perception.py` alone, without touching the agent
-  loop, artifact schema, or replay engine. The cost is that everything
-  — every click, every read — is forced through this one interface,
-  even where a more direct call might otherwise be simpler.
-- **Single browser session, synchronous execution, over
-  services/queues.** Agent, Replay, and escalation all run as one
-  Python process against one live browser session at a time. This
-  keeps the system simple — there is exactly one thing happening at
-  once, so there's no coordination logic to write or reason about. The
-  cost is that this doesn't scale to concurrent runs without real
-  rework; running two capabilities at the same time isn't supported
-  today.
+- **A fixed action set over free-text actions.** Every turn, the model must return one call from a closed set (`click`, `type_text`, `navigate`, `read`, `select_option`, `done`) rather than a free-form response. This makes actions reliably parseable and keeps the transcript close to the artifact schema's own shape, at the cost of flexibility like drag-and-drop, etc.
+- **A text observation over screenshots.** The model chooses from a list of named interactive elements, and each of those already carries a locator and fallbacks. So whatever the model clicks can be recorded as a replayable step without any image understanding at replay time. The cost is that the model can't use purely visual information, such as an unlabeled icon or a canvas.
+- **Surface as the one seam both Agent and Replay go through.** Neither component talks to Playwright or raw HTML directly — both act only through `Surface`'s methods and see only `PageState`/`ElementRef`. This is the seam that would let a future desktop or legacy-app surface (see Section 4) be swapped in by writing a new session class with the same methods and a matching `perception.py`, without touching the agent loop, artifact schema, or replay engine. The cost is that everything, every click and every read, is forced through this one interface, even where a more direct call would be simpler.
 
 
 ## 2. Artifact schema
