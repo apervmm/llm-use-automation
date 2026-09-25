@@ -9,5 +9,5 @@ def checkpoint_met(session: BrowserSession, checkpoint: Checkpoint) -> bool:
     if checkpoint.kind == "text_visible":
         return checkpoint.expected in session.get_visible_text()
     if checkpoint.kind == "element_visible":
-        return session.page.locator(checkpoint.expected).first.is_visible()
+        return session.is_visible(checkpoint.expected)
     return False

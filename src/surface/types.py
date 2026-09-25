@@ -75,3 +75,4 @@ class ActionResult:
     error: Optional[str] = None
     duration_ms: int = 0
     value: Optional[str] = None 
+    policy_violation: bool = False

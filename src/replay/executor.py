@@ -1,10 +1,15 @@
 import re
 from surface.browser import BrowserSession
-from artifact.schema import Capability, StepAction, Checkpoint, OutcomeRule, RiskLevel
+from artifact.schema import Capability, StepAction, Checkpoint, OutcomeRule, RiskLevel, ParamType
 from escalation.handoff import raise_escalation, EscalationReason, HandoffState, OperatorDecision
 from .outcomes import ReplayResult, ReplayStatus
 from safety.redaction import redact_any
 from replay.checkpoint import checkpoint_met
+from safety.allowlist import Allowlist
+from artifact.store import qualify
+from surface.types import ActionResult
+
+_PLACEHOLDER = re.compile(r"\{(\w+)\}")
 
 
 def replay(
@@ -21,10 +26,25 @@ def replay(
     
     Checkpoint miss => checks declared outcome_rules before concluding it's a hard failure.
     """
+
+
     handoff_state = HandoffState()
     escalations: list[dict] = [] 
 
-    if capability.risk_level == RiskLevel.RISKY and not confirmed:
+    if errors := input_errors(capability, inputs):
+        return ReplayResult(
+            status=ReplayStatus.FAILURE,
+            capability_id=capability.capability_id,
+            failed_step=0, 
+            expected="valid inputs", 
+            observed="; ".join(errors),
+            error=f"Invalid inputs: {'; '.join(errors)}",
+        )
+
+    full_id = qualify(capability.capability_id, capability.target_app)
+    is_risky = capability.risk_level == RiskLevel.RISKY or Allowlist().is_risky(full_id)
+
+    if is_risky and not confirmed:
         if on_escalation:
             safe_inputs = redact_any(dict(inputs))
             params_summary = ", ".join(f"{k}={v}" for k, v in safe_inputs.items())
@@ -61,7 +81,7 @@ def replay(
                 escalations=escalations
             )
         
-    _validate_inputs(capability, inputs)
+    # _validate_inputs(capability, inputs)
 
     nav_result = session.goto(capability.entry_url)
 
@@ -78,14 +98,28 @@ def replay(
 
     read_values: dict[str, str] = {}
     step_index = 0
-    steps = capability.steps
+    # steps = capability.steps
+    steps = sorted(capability.steps, key=lambda s: s.step_num)  
 
 
     # for step in capability.steps:
     while step_index < len(steps):
         step = steps[step_index]
         value = _substitute(step.value, inputs) if step.value else None
-        result = _execute_step(session, step, value)
+        result = _run_step(session, step, value)
+        if result is not None and result.policy_violation:
+            return _policy_failure(capability, step, result, inputs, escalations)
+
+        if result is not None and result.policy_violation:
+            return ReplayResult(
+                status=ReplayStatus.FAILURE,
+                capability_id=capability.capability_id,
+                failed_step=step.step_num,
+                expected=_fill(step.description, inputs),
+                observed=result.error,
+                error=f"Policy violation at step {step.step_num}: {result.error}",
+                escalations=escalations,
+            )
 
         # if step.action == StepAction.READ:
         #     if result is not None and result.success:
@@ -122,6 +156,8 @@ def replay(
                     capability.capability_id,
                     f"Step {step.step_num} ({step.action.value}) failed: {error_text}",
                     current_step=step.step_num,
+                    evidence_dir=evidence_dir,
+                    run_id=run_id,
                 )
 
 
@@ -131,7 +167,12 @@ def replay(
 
 
                 if decision == OperatorDecision.RESUME:
-                    retry_result = _execute_step(session, step, value)
+                    session.pop_dialogs()
+                    retry_result = _run_step(session, step, value)
+
+                    if retry_result is not None and retry_result.policy_violation:
+                        return _policy_failure(capability, step, retry_result, inputs, escalations)
+                    
                     if retry_result is not None and retry_result.success:
                         step_index += 1
                         continue
@@ -153,7 +194,7 @@ def replay(
                         status=ReplayStatus.FAILURE,
                         capability_id=capability.capability_id,
                         failed_step=step.step_num,
-                        expected=step.description,
+                        expected=_fill(step.description, inputs),
                         observed=retry_error,
                         error=f"Step {step.step_num} ({step.action.value}) failed even after operator intervention: {retry_error}",
                         escalations=escalations,
@@ -162,7 +203,7 @@ def replay(
                 status=ReplayStatus.FAILURE,
                 capability_id=capability.capability_id,
                 failed_step=step.step_num,
-                expected=step.description,
+                expected=_fill(step.description, inputs),
                 observed=error_text,
                 error=f"Step {step.step_num} ({step.action.value}) failed: {error_text}",
                 escalations=escalations,
@@ -191,7 +232,9 @@ def replay(
                 EscalationReason.REPLAY_FAILURE,
                 capability.capability_id,
                 f"Checkpoint not met: {capability.checkpoint.kind}={capability.checkpoint.expected}",
-                current_step=capability.steps[-1].step_num if capability.steps else None,
+                current_step=steps[-1].step_num if steps else None,
+                evidence_dir=evidence_dir,
+                run_id=run_id,
             )
             
             decision, escalation_record = on_escalation(req, handoff_state)
@@ -211,7 +254,7 @@ def replay(
         return ReplayResult(
             status=ReplayStatus.FAILURE,
             capability_id=capability.capability_id,
-            failed_step=capability.steps[-1].step_num if capability.steps else None,
+            failed_step=steps[-1].step_num if steps else None,
             expected=f"{capability.checkpoint.kind}={capability.checkpoint.expected}",
             observed=session.get_url(),
             error="Checkpoint not met and no matching business outcome found.",
@@ -228,10 +271,32 @@ def replay(
     )
 
 
-def _validate_inputs(capability: Capability, inputs: dict) -> None:
-    missing = [p.name for p in capability.inputs if p.required and p.name not in inputs]
+# def _validate_inputs(capability: Capability, inputs: dict) -> None:
+#     missing = [p.name for p in capability.inputs if p.required and p.name not in inputs]
+#     if missing:
+#         raise ValueError(f"Missing required input(s): {missing}")
+
+
+def input_errors(capability: Capability, inputs: dict) -> list[str]:
+    declared = {p.name for p in capability.inputs}
+    referenced = {m for s in capability.steps if s.value for m in _PLACEHOLDER.findall(s.value)}
+    missing = sorted(p.name for p in capability.inputs if p.required and p.name not in inputs)
+    errors = []
     if missing:
-        raise ValueError(f"Missing required input(s): {missing}")
+        errors.append(f"missing required input(s): {missing}")
+    if unknown := sorted(set(inputs) - declared):
+        errors.append(f"unknown input(s): {unknown}")
+    if unsupplied := sorted(referenced - set(inputs) - set(missing)):
+        errors.append(f"steps reference params with no value: {unsupplied}")
+
+    for p in capability.inputs:
+           if p.type == ParamType.NUMBER and p.name in inputs:
+               try:
+                   float(inputs[p.name])
+               except ValueError:
+                   errors.append(f"'{p.name}' must be a number, got {inputs[p.name]!r}")
+
+    return errors
 
 
 def _substitute(template: str, inputs: dict) -> str:
@@ -244,18 +309,14 @@ def _substitute(template: str, inputs: dict) -> str:
     return re.sub(r"\{(\w+)\}", _sub, template)
 
 
-# def _checkpoint_met(session: BrowserSession, checkpoint: Checkpoint) -> bool:
-#     if checkpoint.kind == "url_contains":
-#         return checkpoint.expected in session.page.url
-#     if checkpoint.kind == "text_visible":
-#         return checkpoint.expected in session.page.inner_text("body")
-#     if checkpoint.kind == "element_visible":
-#         return session.page.locator(checkpoint.expected).first.is_visible()
-#     return False
-
+def _fill(text: str, inputs: dict) -> str:
+    """A step description with the caller's actual values in place of {placeholders}."""
+    for key, val in inputs.items():
+        text = text.replace("{" + key + "}", str(val))
+    return text
 
 def _check_outcomes(session: BrowserSession, rules: list[OutcomeRule]) -> str | None:
-    session.page.wait_for_timeout(500)
+    session.wait(500)
     page_text = session.get_visible_text()
     for rule in rules:
         if rule.kind == "text_visible" and rule.expected in page_text:
@@ -275,15 +336,15 @@ def _extract_outputs(
     for field in capability.outputs:
         if field.derived_from_outcome:
             if status == ReplayStatus.SUCCESS:
-                outputs[field.name] = "Approved"
+                outputs[field.name] = "success"
             elif status == ReplayStatus.BUSINESS_OUTCOME:
-                outputs[field.name] = "Denied"
+                outputs[field.name] = outcome_name
             else:
                 outputs[field.name] = None
         elif field.source_label in read_values:
             outputs[field.name] = read_values[field.source_label]
         elif "succeed" in field.name.lower() or "success" in field.name.lower():
-            outputs[field.name] = "true"
+            outputs[field.name] = "true" if status == ReplayStatus.SUCCESS else "false"
         else:
             outputs[field.name] = None
     return outputs
@@ -301,7 +362,7 @@ def _wait_for_checkpoint(
     while elapsed < timeout_ms:
         if checkpoint_met(session, checkpoint):
             return True
-        session.page.wait_for_timeout(interval_ms)
+        session.wait(interval_ms)
         elapsed += interval_ms
     return checkpoint_met(session, checkpoint)
 
@@ -326,6 +387,27 @@ def _execute_step(session: BrowserSession, step, value: str | None):
         return session.read_text(step.target, description=step.description)
     return None
 
+
+def _run_step(session: BrowserSession, step, value: str | None):
+    """Execute one step; a step that caused a JS dialog counts as failed."""
+    result = _execute_step(session, step, value)
+    dialogs = session.pop_dialogs()
+    if dialogs and result is not None and result.success:
+        result = ActionResult(False, result.action, result.target_description,
+                              error=f"Unexpected dialog(s) dismissed: {dialogs}")
+    return result
+
+
+def _policy_failure(capability: Capability, step, result, inputs: dict, escalations: list) -> ReplayResult:
+    return ReplayResult(
+        status=ReplayStatus.FAILURE,
+        capability_id=capability.capability_id,
+        failed_step=step.step_num,
+        expected=_fill(step.description, inputs),
+        observed=result.error,
+        error=f"Policy violation at step {step.step_num}: {result.error}",
+        escalations=escalations,
+    )
 
 def _try_extract_account_context(session: BrowserSession, inputs: dict) -> str:
     """Best-effort: if the current page already shows account balances (e.g.

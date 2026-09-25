@@ -1,7 +1,7 @@
 capability_id: login
 goal: >
-  Log in with username 'john' and password 'demo'. When calling done,
-  include output keys 'login_succeeded' and 'message'.
+  Log in with username '${PARABANK_USERNAME}' and password '${PARABANK_PASSWORD}'.
+  When calling done, include output keys 'login_succeeded' and 'message'.
 # url: https://parabank.parasoft.com/parabank/index.htm
 url: ${PARABANK_BASE_URL}/parabank/index.htm
 params:

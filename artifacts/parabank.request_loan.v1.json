@@ -1,27 +1,27 @@
 {
   "capability_id": "parabank.request_loan",
   "version": 1,
-  "description": "Recorded from goal: Apply for a loan with amount '1000' and down payment '10'. Select an account from the dropdown using select_option even if only one option exists, click Apply Now, and wait for 'Loan Request Processed' to appear. When calling done, include 'loan_status' and, if approved, 'new_account_id'. When you read 'new_account_id', always pass element_name set to 'Your new account number:' in the read tool call, so the value can be resolved to a stable element for later replay.\n",
+  "description": "Recorded from goal: Apply for a loan with amount '{amount}' and down payment '{down_payment}'. Select an account from the dropdown using select_option even if only one option exists, click Apply Now, and wait for 'Loan Request Processed' to appear. When calling done, include 'loan_status' and, if approved, 'new_account_id'. When you read 'new_account_id', always pass element_name set to 'Your new account number:' in the read tool call, so the value can be resolved to a stable element for later replay.\n",
   "target_app": "parabank",
   "entry_url": "http://localhost:8080/parabank/requestloan.htm",
   "inputs": [
     {
       "name": "amount",
-      "type": "string",
+      "type": "number",
       "description": "",
       "required": true,
       "example": "1000"
     },
     {
       "name": "down_payment",
-      "type": "string",
+      "type": "number",
       "description": "",
       "required": true,
       "example": "10"
     },
     {
       "name": "from_account_id",
-      "type": "string",
+      "type": "number",
       "description": "",
       "required": true,
       "example": "12345"
@@ -108,7 +108,7 @@
       },
       "value": "{from_account_id}",
       "read_label": null,
-      "description": "Select '12345' in 'From account #:'"
+      "description": "Select '{from_account_id}' in 'From account #:'"
     },
     {
       "step_num": 4,
@@ -181,7 +181,7 @@
     "kind": "text_visible",
     "expected": "Congratulations, your loan has been approved."
   },
-  "created_at": "2026-09-22T09:38:26.198094+00:00",
+  "created_at": "2026-09-25T00:02:49.684993+00:00",
   "outcome_rules": [
     {
       "name": "insufficient_funds_for_down_payment",

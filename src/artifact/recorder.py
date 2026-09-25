@@ -1,8 +1,19 @@
 from agent.loop import AgentRunResult, TranscriptStep
-from .schema import Capability, Step, StepAction, InputParam, OutputField, Checkpoint, RiskLevel
+from .schema import (
+    Capability, 
+    Step, 
+    StepAction, 
+    InputParam, 
+    OutputField, 
+    Checkpoint, 
+    RiskLevel, 
+    ParamType
+)
 from safety.allowlist import Allowlist
 from safety.redaction import redact
+from .store import qualify
 
+import re
 
 
 def record(
@@ -22,9 +33,16 @@ def record(
     allowlist = allowlist or Allowlist()
     steps = _build_steps(run_result.transcript, param_map)
 
+    unmatched = [name for name in param_map.values() if not any(s.value and f"{{{name}}}" in s.value for s in steps)]
+    if unmatched: 
+        raise ValueError(
+            f"Param(s) {unmatched} never matched a typed/selected value - check the env vars are set and the goal uses the same literals.")
+    description = _template(description or f"Recorded capability for goal: {run_result.goal}", param_map)
+
     inputs = [
         InputParam(
             name=name, 
+            type=_infer_type(literal),
             example="[REDACTED]" if name.lower() in ("password", "pin", "ssn") else literal
         )
         for literal, name in param_map.items()
@@ -42,10 +60,11 @@ def record(
         if key in run_result.outputs or key in outcome_derived_outputs
     ]
 
-    risk_level = RiskLevel.RISKY if allowlist.is_risky(capability_id) else RiskLevel.SAFE
+    full_id = qualify(capability_id)
+    risk_level = RiskLevel.RISKY if allowlist.is_risky(full_id) else RiskLevel.SAFE
 
     return Capability(
-        capability_id=capability_id,
+        capability_id=full_id,
         description=description or f"Recorded capability for goal: {run_result.goal}",
         entry_url=entry_url,
         inputs=inputs,
@@ -97,7 +116,7 @@ def _build_steps(transcript: list[TranscriptStep], param_map: dict[str, str]) ->
                 action=StepAction.SELECT_OPTION,
                 target=t.resolved_ref,
                 value=value,
-                description=f"Select '{t.tool_input.get('option_value')}' in '{t.tool_input.get('element_name')}'",
+                description=f"Select '{value}' in '{t.tool_input.get('element_name')}'",
             ))
         elif t.tool_name == "navigate":
             steps.append(Step(
@@ -117,3 +136,19 @@ def _build_steps(transcript: list[TranscriptStep], param_map: dict[str, str]) ->
 
 def _parameterize(literal: str, param_map: dict[str, str]) -> str:
     return f"{{{param_map[literal]}}}" if literal in param_map else literal
+
+
+def _template(text: str, param_map: dict[str, str]) -> str:
+    """Replace recorded literals with {param} placeholders, longest first."""
+    for literal in sorted(param_map, key=len, reverse=True):
+        text = re.sub(rf"(?<!\w){re.escape(literal)}(?!\w)", "{" + param_map[literal] + "}", text)
+    return text
+
+
+def _infer_type(literal: str) -> ParamType:
+    """'1000' -> NUMBER, 'demo' -> STRING, based on the value the agent actually used."""
+    try:
+        float(literal)
+        return ParamType.NUMBER
+    except ValueError:
+        return ParamType.STRING

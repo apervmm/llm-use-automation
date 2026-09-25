@@ -21,10 +21,12 @@ from replay.checkpoint import checkpoint_met
 from escalation.operator_cli import to_operator
 from observability.logger import log_discovery, log_replay
 
+from replay.executor import input_errors
+
 
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+# sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
 
@@ -117,8 +119,8 @@ def discover(config_path, max_steps):
             result.success = False
             result.stop_reason = "checkpoint_not_met_despite_done"
         
-
-    log_discovery(result, evidence_dir, run_id=run_id)
+    sensitive = [lit for lit, name in config.get("params", {}).items() if name.lower() in ("password", "pin", "ssn")]
+    log_discovery(result, evidence_dir, sensitive_values=sensitive, run_id=run_id)
     click.echo(f"Discovery {'succeeded' if result.success else 'failed'} ({result.stop_reason})")
 
 
@@ -180,6 +182,9 @@ def replay(config_path, inputs, version_, confirmed):
     capability_id = config["capability_id"]
     capability = store.load(capability_id, version=version_)
     input_dict = _parse_pairs(inputs)
+
+    if errors := input_errors(capability, input_dict):
+        raise SystemExit("Invalid inputs: " + "; ".join(errors))
     
     run_id = uuid.uuid4().hex[:12]
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")

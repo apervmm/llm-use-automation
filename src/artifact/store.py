@@ -2,6 +2,9 @@ import re
 from pathlib import Path
 from .schema import Capability
 
+DEFAULT_APP = "parabank"
+
+
 ARTIFACT_DIR = Path("artifacts")
 
 _VALID_ID = re.compile(r"^[a-zA-Z0-9_.-]+$")
@@ -34,22 +37,39 @@ def _existing_versions(capability_id: str) -> list[int]:
     return versions
 
 
-def save(capability: Capability) -> Path:
-    _validate_id(capability.capability_id)
+def qualify(capability_id: str, target_app: str = DEFAULT_APP) -> str:
+    prefix = f"{target_app}."
+    return capability_id if capability_id.startswith(prefix) else prefix + capability_id
+
+
+
+# def save(capability: Capability) -> Path:
+#     _validate_id(capability.capability_id)
     
-    prefix = f"{capability.target_app}.{capability.capability_id}" 
-    existing = _existing_versions(prefix)
+#     prefix = f"{capability.target_app}.{capability.capability_id}" 
+#     existing = _existing_versions(prefix)
+#     if existing and capability.version <= max(existing):
+#         capability.version = max(existing) + 1
+        
+#     filename = f"{capability.target_app}.{capability.capability_id}.v{capability.version}.json"
+#     path = _safe_path(filename)
+#     path.write_text(capability.model_dump_json(indent=2))
+#     return path
+
+
+def save(capability: Capability) -> Path:
+    capability.capability_id = qualify(capability.capability_id, capability.target_app)
+    _validate_id(capability.capability_id)
+    existing = _existing_versions(capability.capability_id)
     if existing and capability.version <= max(existing):
         capability.version = max(existing) + 1
-        
-    filename = f"{capability.target_app}.{capability.capability_id}.v{capability.version}.json"
-    path = _safe_path(filename)
+    path = _safe_path(f"{capability.capability_id}.v{capability.version}.json")
     path.write_text(capability.model_dump_json(indent=2))
     return path
 
 
-
 def load(capability_id: str, version: int | None = None) -> Capability:
+    capability_id = qualify(capability_id)
     _validate_id(capability_id)
 
     if version is not None:

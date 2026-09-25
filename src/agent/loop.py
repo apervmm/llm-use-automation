@@ -66,7 +66,11 @@ class AgentLoop:
 
 
     def run(self, goal: str, start_url: str) -> AgentRunResult:
-        self.session.goto(start_url)
+
+        nav = self.session.goto(start_url)
+        if not nav.success:
+            return AgentRunResult(goal, False, f"entry_unreachable: {nav.error}")
+        
         transcript: list[TranscriptStep] = []
         outputs: dict = {}
         escalations: list[dict] = []
@@ -129,8 +133,8 @@ class AgentLoop:
                     step_num, state.url, "done", tool_use.input, True, "goal completed"))
                 return AgentRunResult(goal, True, "goal_met", transcript, outputs, escalations)
 
-            result_text, state, ref= self._execute(tool_use, state, step_num)
-            success = "ERROR" not in result_text
+            result_text, state, ref, success= self._execute(tool_use, state, step_num)
+            # success = "ERROR" not in result_text
             consecutive_failures = 0 if success else consecutive_failures + 1
 
 
@@ -197,19 +201,19 @@ class AgentLoop:
         tool_use, 
         state: PageState, 
         step_num: int
-    ) -> tuple[str, PageState, ElementRef | None]:
+    ) -> tuple[str, PageState, ElementRef | None, bool]:
         
         name, inp = tool_use.name, tool_use.input
 
         if name == "click":
             ref = state.find_ref(inp["element_name"], inp.get("role"))
             if ref is None:
-                return f"ERROR: no element named '{inp['element_name']}' found on this page.",  state, None
+                return f"ERROR: no element named '{inp['element_name']}' found on this page.",  state, None, False
             result = self.session.click(ref, description=inp["element_name"])
         elif name == "type_text":
             ref = state.find_ref(inp["element_name"], "textbox")
             if ref is None:
-                return f"ERROR: no textbox named '{inp['element_name']}' found on this page.",  state, None
+                return f"ERROR: no textbox named '{inp['element_name']}' found on this page.",  state, None, False
             result = self.session.type_text(ref, inp["text"], description=inp["element_name"])
         elif name == "navigate":
             ref = None
@@ -217,26 +221,26 @@ class AgentLoop:
         elif name == "select_option":
             ref = state.find_ref(inp["element_name"], "combobox")
             if ref is None:
-                return f"ERROR: no dropdown named '{inp['element_name']}' found on this page.", state, None
+                return f"ERROR: no dropdown named '{inp['element_name']}' found on this page.", state, None, False
             result = self.session.select_option(ref, inp["option_value"], description=inp["element_name"])
         elif name == "read":
             ref = None
             element_name = inp.get("element_name")
             if element_name:
                 ref = state.find_ref(element_name)
-            return f"Recorded {inp['label']} = {inp['value']}.", state, ref
+            return f"Recorded {inp['label']} = {inp['value']}.", state, ref, True
         else:
-            return f"ERROR: unknown tool '{name}'.", state, None
+            return f"ERROR: unknown tool '{name}'.", state, None, False
         
 
         if not result.success:
-            return f"ERROR: {name} failed — {result.error}", state, ref
+            return f"ERROR: {name} failed — {result.error}", state, ref, False
 
-        self.session.page.wait_for_timeout(500)
+        self.session.wait(500)
 
         new_state = snapshot(self.session, screenshot_path=f"{self.evidence_dir}/step_{step_num}.png")
         
-        return f"{name} succeeded. New page: {self._observation_text(None, new_state, include_goal=False)}", new_state, ref
+        return f"{name} succeeded. New page: {self._observation_text(None, new_state, include_goal=False)}", new_state, ref, True
 
 
     def _observation_text(self, goal: str | None, state: PageState, include_goal: bool = True) -> str:

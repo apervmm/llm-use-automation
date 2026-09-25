@@ -61,7 +61,7 @@ def raise_escalation(
 ) -> EscalationRequest:
     
     try:
-        session.page.bring_to_front()
+        session.bring_to_front()
     except Exception:
         pass
     
@@ -82,7 +82,7 @@ def raise_escalation(
         reason=reason,
         capability_or_goal=capability_or_goal,
         current_step=current_step,
-        current_url=session.page.url,
+        current_url=session.get_url(),
         detail=detail,
         screenshot_path=screenshot_path,
         run_id=run_id, 
