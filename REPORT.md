@@ -357,9 +357,67 @@ This section is mostly design. What is built and what is not:
 All escalations use one mechanism: automation pauses, a human takes over the same live browser session the automation was using, and then hands control back with a decision.
 
 ### Detecting when to escalate
-1. `dicovery_stuck`: the step limit is reached, 3 actions fail in a row, or the model returns no action.
-2. `replay_failure`: the step fails and no out 
+1. `dicovery_stuck`: triggered when the step limit is reached, 3 actions fail in a row, or the model returns no action.
+2. `replay_failure`: triggered when the step fails and no `outcome_rule` matches the page, or the checkpoint isn't met and no `outcome_rule` matches
+3. `risky_confirmation`: triggered before step 1 of any capability classified as risky (see Section 6)
 
+Some conditions deliberately don't escalate, because a human can't or shouldn't fix them mid-run: invalid inputs and an unreachable entry page stop at step 0, and a policy violation stops the run immediately (see Section 3).
+
+### Routing the request
+`raise_escalation()` builds an `EscalationRequest` with the context an operator needs to act, and saves a screenshot of the current page into the run's evidence folder:
+```
+@dataclass
+class EscalationRequest:
+    reason: EscalationReason        
+    capability_or_goal: str         
+    current_step: int | None
+    current_url: str
+    detail: str                    
+    screenshot_path: str | None
+    timestamp: str
+    run_id: str | None
+```   
+The operator sees the reason, task, step, URL, and detail in the terminal. For a failed step, the detail is the step's own error. For a risky confirmation, it lists the parameters about to be submitted and, when the page shows it, the current state of the account involved.
+
+
+### Taking control of the live session
+Discovery and replay always run in a visible browser window. When an escalation is raised:
+1. The browser window is brought to the front. It is the same session, with the same login, cookies, and page, so the operator continues exactly where automation stopped.
+2. `HandoffState.automation_in_control` is set to False, recording that the human is in control.
+3. Automation blocks on the operator prompt. Because execution is synchronous (Section 1), no automated action can happen while the human is working in the browser.
+
+### Handing control back
+The operator types `resume` or `abort`, and can add a note describing what they did. On `resume`, control returns to automation (`automation_in_control = True`), and what happens next depends on the reason:
+1. `discovery_stuck`: The agent observes the page again, so it sees whatever the human changed; its failure count is reset, and if the step limit was hit, it gets 3 more steps. At most 2 escalations per run.
+2. `replay_failure` (step): The failed step is retried once, with the same dialog and policy checks as the first attempt. Dialogs raised while the operator was in control are discarded first. If the retry fails -> `FAILURE`.
+3. `replay_failure` (checkpoint): The checkpoint is checked again (polled for up to 5s). If it still isn't met -> `FAILURE`.
+4. `risky_confirmation`: The run is confirmed, and replay starts at step 1.
+
+On `abort`, the run ends: discovery stops with `aborted_by_operator` and nothing is recorded; replay returns `FAILURE` with the reason.
+
+
+### What's recorded
+Every escalation is appended to the run's result.json with the request, the operator's decision, and their note:
+```
+    {
+      "reason": "replay_failure",
+      "capability_or_goal": "parabank.request_loan",
+      "current_step": 3,
+      "current_url": "http://localhost:8080/parabank/requestloan.htm",
+      "detail": "Step 3 (select_option) failed: The dropdown has 14 option(s): ['12456', '12567', '12678', '12789', '12900', '13011', '13122', '13233', '54321', '13566', '12345', '13677', '13788', '13344']. '99999' isn't one of them. | raw error: TimeoutError: Locator.select_option: Timeout 5000ms exceeded.",
+      "screenshot_path": "evidence/replay_request_loan_20260925T034756Z_8deaf537c58b/escalation_3de8c79df3c64363a3670539d2e0efa6.png",
+      "timestamp": "2026-09-25T03:48:09.469175+00:00",
+      "operator_decision": "abort",
+      "human_actions": []
+    }
+```
+### Limits and the full design
+1. **Terminal instead of an operator console** For the simplicity of the system, there's no live console with full operations, and convenience is implemented. The interaction is mocked through the terminal when escalation fires.
+2. **Human actions are a free-text note, not a record.** The note is whatever the operator types. The full version records the operator's clicks and typing during the handoff window, with the same redaction as automated steps, and attaches them to the escalation record.
+3. No "I did it myself" option. resume always retries the failed step. If the operator already completed that step manually, the retry repeats it, and on a submit button that could submit twice. The next step is a third decision, skip, meaning "the step is done, continue with the next one", and requiring confirmation before retrying a step of a risky capability.
+4. The control flag is informational. The pause is enforced by the blocking prompt, not by the surface checking automation_in_control. With concurrent runs or a non-blocking console, the surface should refuse automated actions while the human is in control.
+5. Dialogs are dismissed during the handoff too. The dialog handler doesn't know a human is in control, so an operator can't answer a confirm() themselves.
+6. No timeout. A run waits for the operator indefinitely.
 
 ## 6. Safety
 *your guardrail model and its limits.*
