@@ -31,16 +31,31 @@ def test_ssn_and_card_numbers_are_hidden():
     assert "123-45-6789" not in text and "4111111111111111" not in text
 
 
-def test_short_account_numbers_are_not_hidden_known_limit():
-    assert redact_any("account 13344") == "account 13344"
+def test_account_fields_keep_only_the_last_two_digits():
+    assert redact_any({"from_account_id": "13344"}) == {"from_account_id": "***44"}
 
 
-def test_replay_log_hides_the_password_input(tmp_path):
+def test_known_account_numbers_are_masked_inside_free_text():
+    text = "Select '13344' in 'From account #:'"
+    assert redact_any(text, masked_values={"13344"}) == "Select '***44' in 'From account #:'"
+
+
+def test_account_number_inside_a_longer_number_is_left_alone():
+    assert redact_any("ref 133445", masked_values={"13344"}) == "ref 133445"
+
+
+def test_replay_log_hides_secrets_and_masks_accounts_in_every_field(tmp_path):
     result = ReplayResult(
-        status=ReplayStatus.BUSINESS_OUTCOME, 
-        capability_id="parabank.login",
-        outcome_name="invalid_credentials"
+        status=ReplayStatus.FAILURE, 
+        capability_id="parabank.request_loan", 
+        failed_step=3,
+        expected="Select '13344' in 'From account #:'",
+        observed="password 'wrong' was echoed back",
+        error="Step 3 failed for account 13344 with password 'wrong'",
     )
-    path = log_replay(result, str(tmp_path), inputs={"username": "john", "password": "wrong"}, run_id="test")
-    assert json.loads(path.read_text())["inputs"]["password"] == "[REDACTED]"
-    assert "wrong" not in path.read_text()
+    inputs = {"username": "john", "password": "wrong", "from_account_id": "13344"}
+    path = log_replay(result, str(tmp_path), inputs=inputs, run_id="test")
+    text = path.read_text()
+    assert "wrong" not in text
+    assert "13344" not in text
+    assert "***44" in text

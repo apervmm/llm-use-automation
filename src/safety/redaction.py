@@ -11,7 +11,7 @@ _PATTERNS = [
 _SENSITIVE_KEYS = {"password", "pin", "ssn", "text"}
 
 
-def redact_any(obj, sensitive_values: set[str] | None = None):
+def redact_any(obj, sensitive_values: set[str] | None = None,  masked_values: set[str] | None = None):
     """
     Recursively redact a nested structure (dict/list/str) before
     serialization. Two mechanisms combine:
@@ -23,6 +23,7 @@ def redact_any(obj, sensitive_values: set[str] | None = None):
       page-state dump.
     """
     sensitive_values = sensitive_values or set()
+    masked_values = masked_values or set()
 
     if isinstance(obj, dict):
         out = {}
@@ -35,18 +36,23 @@ def redact_any(obj, sensitive_values: set[str] | None = None):
                 out[k] = "[REDACTED]"
             elif k == "text" and text_is_sensitive:
                 out[k] = "[REDACTED]"
+            elif "account" in k.lower() and str(v).isdigit():
+                out[k] = mask_account(v)
             else:
-                out[k] = redact_any(v, sensitive_values)
+                out[k] = redact_any(v, sensitive_values, masked_values)
         return out
 
     if isinstance(obj, list):
-        return [redact_any(v, sensitive_values) for v in obj]
+        return [redact_any(v, sensitive_values, masked_values) for v in obj]
 
     if isinstance(obj, str):
         result = redact(obj)  # existing pattern-based scrub (SSN/card shapes)
         for val in sensitive_values:
             if val:
                 result = result.replace(val, "[REDACTED]")
+        for val in masked_values:
+            if val:
+                result = re.sub(rf"(?<!\d){re.escape(val)}(?!\d)", mask_account(val), result)
         return result
 
     return obj
@@ -68,3 +74,8 @@ def redact_dict(d: dict, sensitive_keys: set[str] = frozenset({"password", "ssn"
         else:
             out[k] = v
     return out
+
+
+def mask_account(value) -> str:
+    s = str(value)
+    return "*" * (len(s) - 2) + s[-2:] if len(s) > 2 else "*" * len(s)
