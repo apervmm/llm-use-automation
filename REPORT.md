@@ -424,7 +424,7 @@ Every escalation is appended to the run's result.json with the request, the oper
 *your guardrail model and its limits.*
 
 
-7. Cuts
+## 7. Cuts
 Automated tests. Behavior was checked with one-off scripts against the local ParaBank. They should become a test suite.
 Some outputs are guessed from their names. If no step reads an output from the page, an output named like login_succeeded is set to "true" or "false" from the run's result, and any other output comes back empty. Each output should state where its value comes from.
 loan_status copies the run's result. Reading the status from the page sometimes returns the label ("Status:") instead of the value, so it's taken from the result instead. Once page reading is reliable, it should come from the page.
