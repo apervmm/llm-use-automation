@@ -79,50 +79,28 @@ A capability such as `artifacts/parabank.request_loan.v1.json` is one JSON file 
 ## 3. Determinism & error handling
 
 ### Deterministic replay
-Replay is deterministic because nothing is decided at runtime. There are three points where a decision could happen, and each one is fixed in advance: 
-1. **Which actions to take.** Replay does not call the LLM. It runs `capability.steps` in `step_num` order with the recorded targets and values. The only thing that changes between runs is the `{param}` placeholders, which `_substitute()` fills from the caller's inputs. 
-2. **Whether the inputs are valid.** `input_errors()` checks the caller's inputs against the artifact before anything else: missing required inputs, unknown input names (e.g., a typo like `amout`), `{placeholders} `with no value, and values that aren't numbers where the artifact declares `number`. Any problem returns `FAILURE` at step 0, listing every problem, e.g., `Invalid inputs: missing required input(s): ['amount']; unknown input(s): ['amout']`. The CLI runs the same check before it opens the browser, so a bad input never reaches the login or the risky-confirmation prompt.
-3. **Whether the run succeeded.** This is decided by `checkpoint` and `outcome_rules` (text or URL checks), not by a model reading the page. 
+Replay is deterministic because nothing is decided at runtime. Three things are fixed before a run starts:
+1. **Actions** are the saved steps, in step order. Only the `{placeholders}` change, filled from the caller's inputs.
+2. **Inputs:** checked before the browser opens. Missing, misspelled, or wrongly typed inputs stop the run with every problem listed, like
+   ```
+   Invalid inputs: missing required input(s): ['amount']; unknown input(s): ['amout']
+   ```
+3. **How success is judged** is decided by `checkpoint` and `outcome_rules` (text or URL checks), not by a model reading the page. 
 
 The same inputs always produce the same actions. The result can still differ, because the application's data can differ. For example, the same `request_loan` steps can be approved or denied depending on the account balance. This is why the result types below separate a business outcome from a failure.
 
-### Element Targeting
-Fixed steps are only useful if each step finds the same element every time. A single locator can break when markup changes slightly, so each step stores a primary locator and fallbacks, all captured from the element used during discovery. The order depends on how stable the CSS selector is: 
-1. **Stable selector** (`#id` or `[name=...]`):  CSS first, then role + name, then visible text. 
-2. **Positional selector** (`nth-of-type` path): role + name first, then visible text, then the positional CSS.
-
-However, there's an issue with `Fallbacks` that could match the wrong element. So I added `_resolve()` to handle this by checking each candidate in the following order:
-1. Wait up to 3s for the element to be visible. 
-2. For links and buttons found by a non-stable locator, check that the element's name matches `expected_name`. If not, try the next candidate. 
-3. If all candidates fail, raise an error listing each strategy and why it failed.
-This way replay either acts on the right element or stops with a clear error. 
-
+### Finding elements
+Each step stores a main way to find its element plus fallbacks, all captured during discovery. The order depends on how reliable the element's ID is. A real ID `(#fromAccountId)` comes first. Without one, the element's role and name (button "Log In") come first, and its position on the page comes last. Replay waits up to 3 seconds for each candidate to appear. For buttons and links found by a fallback, it also checks that the visible name still matches. If nothing matches, the step fails and lists what was tried. Choosing from a dropdown keeps retrying for up to 5 seconds, because ParaBank loads the account list after the page.
 
 ### Result types
 Since the application's data can change the result, replay needs to tell the caller what kind of result it got. Every run ends in one of three states: 
 1. **`SUCCESS`**: the checkpoint was met, and outputs are returned. Example: loan approved. 
 2. **`BUSINESS_OUTCOME`**: the app gave a known non-success answer. This is a valid result, not an error. Examples: `invalid_credentials`, `insufficient_funds`. 
-3. **`FAILURE`**: something unexpected happened and replay stopped. Examples: element not found, page unreachable, or policy violation
+3. **`FAILURE`**: something unexpected happened and replay stopped. The result names the failed step, what was expected, what was seen, and the error, plus a screenshot if a person was asked for help.
 
-The `executor.py` picks the state by checking in this order, both when a step fails and after the last step:
-executor.py picks the state as follows.
+When a step fails, a policy violation ends the run as `FAILURE` immediately. Otherwise, if an outcome rule matches the page, the result is `BUSINESS_OUTCOME`. Otherwise, an operator is asked (Section 5); on `resume`, the step is tried once more before `FAILURE`.
 
-**When a step fails:**
-
-1. A policy violation -> `FAILURE` immediately, with no escalation, so an operator can't retry a blocked action.
-2. An `outcome_rule` matches the page -> `BUSINESS_OUTCOME`. Rules are checked in order and the first match wins, so specific messages are listed first.
-3. Neither -> escalate to an operator (see Section 5). On `resume`, the step is retried once; if it still fails -> `FAILURE`.
-
-**After the last step:**
-
-1. Checkpoint met (polled for up to 5s) > `SUCCESS`.
-2. An `outcome_rule` matches -> `BUSINESS_OUTCOME`.
-3. Neither -> `escalate`; on `resume,` the checkpoint is checked again, otherwise -> `FAILURE`.
-
-Checking outcome rules before declaring failure is what keeps "loan denied" from being reported as a crash. In `/evidence/`, replaying `request_loan` with `amount=100000, down_payment=1` returns `business_outcome` as `insufficient_funds`.
-
-A `FAILURE` includes `failed_step`, `expected`, `observed`, and `error`, plus a screenshot if an escalation was raised. This is enough to see where the run stopped and why.
-
+After the last step, the checkpoint is checked for up to 5 seconds (`SUCCESS`), then the outcome rules (`BUSINESS_OUTCOME`), then the operator is asked before `FAILURE`.
 
 ### Runtime conditions
 The result types above only work if each runtime problem is sent to the right one. Each condition is handled as follows: 
@@ -139,11 +117,10 @@ The result types above only work if each runtime problem is sent to the right on
 The first three are recovered automatically. The rest either return a known result or stop with a clear error.
 
 ### Limits 
-Some conditions are not handled automatically yet. They still don't pass silently: each one causes a failed step and goes to an operator. 
-1. **Not automated:** dismissing unexpected dialogs, retrying failed page loads, detecting session timeouts. The fix is to declare known interstitials in the artifact with a recovery action, the same way `outcome_rules` declare known results.
-2. **Redirects:** the navigation guard cancels navigations the browser starts itself, such as clicking a link or opening a popup. A server redirect happens inside the response, so it is only caught after the page has loaded; replay still stops with FAILURE. The login is an example: the form posts to `login.htm`, which redirects to `overview.htm`.
-3. **UI drift:** fallbacks and name checks handle small changes, such as a new id or a moved button. Larger changes fail at a specific step instead of acting on the wrong element. The name check is a "contains" match, so a button renamed from `Log In `to `Log In Now` would still pass.
-4. **Plain-text reads:** reading a value next to a label can return the label instead (e.g. `"loan_status": "Status:"`). See Cuts.
+1. No automatic recovery from confirmation boxes, failed page loads, or expired sessions; they fail the step. Known interruptions could be declared in the capability with a fix, the way outcome rules declare known answers.
+2. Server redirects can't be blocked before they load. The address is checked after every action, so replay still stops, but the page has already opened.
+3. Page changes: fallbacks cover small changes, such as a new ID or a moved button. Larger changes fail at a specific step instead of clicking the wrong thing. The name check accepts any name that contains the expected one, so "Log In Now" still passes for "Log In".
+4. Reading plain text: reading a value that sits next to a label can return the label instead ("Status:"). See Cuts.
 
 
 ## 4. Heterogeneity & multi-tenant
@@ -176,12 +153,12 @@ The one surface-specific part of the artifact is the locator. `ElementRef` store
 
 ### Legacy web apps
 Legacy web apps use the same surface, but their markup is harder to target. The current design handles some of these cases but not all:
-1. **No ids or test IDs:** already handled. The CSS locator falls back from id to `name` attribute to a positional path, with `role_name` and `text` as fallbacks. ParaBank's Log In button has no id or name, so it uses a positional path, which is more brittle to layout changes.
-2. **Framesets and iframes:** not handled yet. `_to_playwright_locator()` searches only the main page. The fix is to add a frame path to `ElementRef`, so the locator is resolved inside the right frame.
-3. **Elements with no accessible name:** some legacy controls have no label. The element extraction script (`surface/scripts/extract_elements.js`, `nearbyText()`) already falls back to text next to the control, such as the table-cell label `Loan Amount: $`. A screenshot + coordinates strategy could be added as one more `LocatorStrategy`.
+1. **Elements without an ID:** handled. When an element has no ID, replay finds it by its role and visible name instead, like the button named "Log In". Its position on the page is kept only as the last fallback, because it breaks as soon as the layout changes. ParaBank's Log In button works this way.
+2. **Pages split into frames:** not handled. Some older apps show several pages inside one window, each in its own frame. Replay only searches the main page, so it can't find elements inside a frame. The extension to solve this is to store which frame each element is in.
+3. **Fields without a clear label:** partly handled. When a field has no name, it's named after the text next to it, like "Loan Amount: $". Controls with no nearby text could be found by their position on a screenshot. 
 
 ### Desktop apps
-A desktop app needs a new surface class, not a new artifact:
+To extend desktop support, the system needs a new surface class:
 1. **`DesktopSession`** implements the same five actions using an OS accessibility API (e.g. UI Automation on Windows), with `pop_dialogs` reporting unexpected modal windows.
 2. **`snapshot()`** reads the accessibility tree instead of the DOM and returns the same `PageState`: interactive elements, visible text, screenshot.
 3. **Locators** use `role_name` (an accessible role and name, e.g.
@@ -198,51 +175,29 @@ Screenshot + coordinates is possible as a final fallback for controls with no ac
 
 
 ### Multi-tenant reuse
-Many tenants run the same vendor product with different branding, URLs,
-and settings. Recording the same flow for each tenant would repeat most
-of the work. Instead, the current artifact becomes a shared base, and
-each tenant can add a small override file:
+Many tenants run the same vendor product with different branding, URLs, and settings. Recording the same flow for each tenant would repeat most of the work. Instead, the current artifact becomes a shared base, and each tenant can add a small override file:
 
 1. **Base artifact:** recorded once per vendor product, e.g. `<vendorX>.<capability>.v<N>`. It holds the steps, locators, inputs, outputs, and rules that are the same for every tenant. This is the naming the store already uses: `target_app` is the id's prefix, applied in one place by `store.qualify()`.
 2. **Tenant override:** a small file per tenant that changes only what differs, such as the base URL, a relabeled button name, or a different error message in `outcome_rules`. An override cannot add or remove steps; a tenant with a different flow gets its own artifact.
 
-At replay time, the override is merged onto the base artifact. A tenant
-with no differences needs no override. A base artifact is not trusted on
-a new tenant until a test replay passes; if it fails, the tenant gets an
-override or a new discovery run instead of a silently broken capability.
+At replay time, the override is merged onto the base artifact. A tenant with no differences needs no override. A base artifact is not trusted on a new tenant until a test replay passes; if it fails, the tenant gets an override or a new discovery run instead of a silently broken capability.
 
-Part of this already exists: the base URL comes from
-`PARABANK_BASE_URL`, so the same capability config runs against
-localhost or the public demo. The saved artifact still stores the full
-`entry_url`, so the next step is to store a relative path and resolve
+Part of this already exists: the base URL comes from `PARABANK_BASE_URL`, so the same capability config runs against localhost or the public demo. The saved artifact still stores the full `entry_url`, so the next step is to store a relative path and resolve
 the host per tenant.
 
-### Detecting drift
-Tenants upgrade vendor versions at different times, so an artifact that
-works for one tenant can break for another. Drift shows up in replay
-results:
+### Noticing when an app changes
+The vendor releases new versions, and clients install them at different times, so a recording that works for one client can break for another. This isn't built yet, but are 3 signs that I believe can show up at replay:
+1. The main way of finding an element fails, but a fallback works, as a button's ID changed, but its name didn't. The run still succeeds, but the page has changed. Replay would need to log this, but it doesn't yet.
+2. One client fails at the same step every time, while other clients pass. That client has probably upgraded to a new version.
+3. The page shows a message where no outcome rule recognizes
 
-1. **Fallback used:** the primary locator failed, but a fallback worked.
-   This is an early sign of a markup change. Replay would log which
-   candidate was used.
-2. **Step failure at the same step across runs** for one tenant, while
-   other tenants pass. This points to a tenant-specific change, not a
-   general one.
-3. **New unmatched messages:** the checkpoint fails and no
-   `outcome_rule` matches. This often means the app shows a message the
-   artifact doesn't know about.
+The fix is a new discovery run for that client. If only that client changed, the differences go into its override file; if many clients changed, the shared recording gets a new version. Clients that haven't upgraded keep using the old version.
 
-When drift is detected, discovery is re-run for that tenant. The
-differences are saved as a tenant override, or as a new base version if
-many tenants are affected. Tenants that have not upgraded keep using the
-previous version.
+When drift is detected, discovery is re-run for that tenant. The differences are saved as a tenant override, or as a new base version if many tenants are affected. Tenants that have not upgraded keep using the previous version.
 
 ### Limits
-This section is mostly design. What is built and what is not:
-
 1. **Built:** the surface/flow split, `ElementRef` with a locator kind and fallback chain, the shared `ActionResult` and `PageState` types, and base-URL switching through an environment variable.
-2. **Not built:** a surface interface class, desktop or iframe support, tenant overrides, test replays for new tenants, and drift logging.
-3. **Still web-specific**: the `css` and `xpath` locator strategies, `url_contains` checkpoints and outcome rules, and the URL-based allowlist and navigation guard. A desktop surface needs an equivalent for each (see Desktop apps).
+2. **Not built:** a surface interface class, desktop or iframe support, tenant overrides, test replays for new tenants, and drift logging, locator strategies for specific surfaces.
 
 
 ## 5. Escalation & handoff
@@ -343,13 +298,10 @@ Partially discussed in Section 5, Capabilities that move money or open accounts 
 5. Risk depends on the capability's name. A risky capability with an unexpected name is treated as safe.
 
 ## 7. Cuts
-1. Automated tests. Behavior was checked with one-off scripts against the local ParaBank. They should become a test suite.
-2. Some outputs are guessed from their names. If no step reads an output from the page, an output named like login_succeeded is set to "true" or "false" from the run's result, and any other output comes back empty. Each output should state where its value comes from.
-3. loan_status copies the run's result. Reading the status from the page sometimes returns the label ("Status:") instead of the value, so it's taken from the result instead. Once page reading is reliable, it should come from the page.
-4. Loan wording in shared code. The approval message ("This will submit a NEW loan application…") is written into code that every capability uses. Each capability should define its own.
-5. An operator web page, recording the operator's actions, and the done answer (Section 5).
-Handling known interruptions automatically, such as confirmation boxes or expired sessions.
-6. Today they fail the step and go to the operator.
-7. Other apps and multiple clients (Section 4): designed, not built.
-8. Safer discovery: approval before risky submissions, and hiding sensitive data from the AI model and from screenshots (Section 6).
-9. **Approval before unattended runs.** Risky capabilities always need an operator's confirmation. To let them run unattended, each capability would start as a draft and be marked approved by a reviewer once it replays reliably, with the approval recorded.
+1. Outputs are guessed from their names. When no step reads an output from the page, an output named like `login_succeeded` is set to "true" or "false" from the result, and any other output comes back empty. Each output should state where its value comes from.
+2. `loan_status` copies the result. Reading the status from the page sometimes returns the label ("Status:") instead of the value, so it's taken from the result. Once page reading is reliable, it should come from the page.
+3. Operator tools: a web page for operators, recording what the operator did on the surface/browser at escalation, which can be extended to the replay to continue its running.
+4. Automatic recovery from known interruptions, such as confirmation boxes and expired sessions (Section 3).
+5. Other apps and multiple clients (Section 4): designed, not built.
+6. Safer discovery approval before risky submissions, and hiding sensitive data from the AI model and from screenshots (Section 6).
+7. Running risky capabilities without a person. Currently, a person must approve every run of a risky capability. Instead, a new recording would start as a draft that always needs approval, and a reviewer would mark it approved once it has replayed correctly, with their name and the date recorded. Approved capabilities could then run on their own.
