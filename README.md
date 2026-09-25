@@ -40,6 +40,7 @@ The public ParaBank `parabank.parasoft.com` is a shared sandbox that resets peri
 
 
 ## Running without live services
+The project uses two live services: the Anthropic API (for the LLM agent) and ParaBank (the target app).
 - **Without an Anthropic API key:** Discovery CLI commands cannot be run, but you can use existing `/artifacts/` to replay them deterministically.
 - **Without ParaBank:** nothing can run, but the committed `/artifacts/` and `/evidence/` show every stage of a real run. The default setup uses ParaBank locally on `http://localhost:8080/parabank` run by Docker, but you can switch it to point to the production service at `https://parabank.parasoft.com/parabank`
 
