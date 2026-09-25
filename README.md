@@ -21,7 +21,7 @@
 6. Then your `.env` file should look like this:
    ```
    ANTHROPIC_API_KEY=
-   #PARABANK_BASE_URL=https://parabank.parasoft.com/parabank
+   #PARABANK_BASE_URL=https://parabank.parasoft.com
    PARABANK_BASE_URL=http://localhost:8080
    PARABANK_USERNAME=john
    PARABANK_PASSWORD=demo
