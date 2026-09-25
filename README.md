@@ -124,8 +124,8 @@ In the `/artifacts/` folder, you should see new populated artifacts with new ver
 
 ## Evidence
 Each run writes to its own folder under `/evidence/`:
-- `discovery_<capability>_<time>_<run_id>/`: the agent's full transcript (result.json, credentials redacted) and a screenshot of every step.
-- `replay_<capability>_<time>_<run_id>/`: the result (result.json: status, outputs, failed step, expected vs. observed, escalations) and a screenshot for each escalation.
+- Discovery Run: creates the folder `discovery_<capability>_<time>_<run_id>/` with the agent's full transcript in `result.json` and a screenshot of every step. Also, it creates the artifacts in `./artifacts/` that are used in replay and for assignment purposes; it duplicates them in `./evidence/artifacts/<target_app>.<capability>.<vN>.json`
+- Replay Run: `replay_<capability>_<time>_<run_id>/`: the result (result.json: status, outputs, failed step, expected vs. observed, escalations) and a screenshot for each escalation.
 
 
 
