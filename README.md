@@ -36,12 +36,12 @@ The public ParaBank `parabank.parasoft.com` is a shared sandbox that resets peri
 ### 1. Discovery: 
 The loan capability replays the login capability first (auth_capability_id in capabilities/loan.yaml), so record the login first.
 
-To create an LLM discovery artifact and evidence to log in
+1.1 To create an LLM discovery artifact and evidence to log in
 ```bash
 python -m src.cli discover --config capabilities/login.yaml
 ```
 
-To create an LLM discovery artifact and evidence of requesting loan
+1.2 To create an LLM discovery artifact and evidence of requesting loan
 ```bash
 python -m src.cli discover --config capabilities/loan.yaml
 ```
@@ -49,18 +49,18 @@ python -m src.cli discover --config capabilities/loan.yaml
 In the `/artifacts/` folder, you should see new populated artifacts with new versions.
 
 ### 2. Replay: scenarios
-- Success outcome: login succeeded
+2.1 Success outcome: login succeeded
 ```
 python -m src.cli replay --config capabilities/login.yaml --inputs "username=john,password=demo"
 ```
 
-- Business outcome: Wrong password 
+2.2 Business outcome: Wrong password 
 ```
 python -m src.cli replay --config capabilities/login.yaml --inputs "username=john,password=wrong"
 ```
 
 
-- Success outcome: Loan Approved
+2.3 Success outcome: Loan Approved
 
 Type resume and enter the note
 ```
@@ -68,14 +68,14 @@ python -m src.cli replay --config capabilities/loan.yaml --inputs "amount=1000,d
 ```
 
 
-- Business outcome: Loan Denied
+2.4 Business outcome: Loan Denied
 
 Type resume and enter the note
 ```
 python -m src.cli replay --config capabilities/loan.yaml --inputs "amount=100000,down_payment=1,from_account_id=13344"
 ```
 
-- Failure outcome: Account does not exist
+2.5 Failure outcome: Account does not exist
 
 Type resume and enter the note, then abort
 ```
@@ -83,7 +83,7 @@ python -m src.cli replay --config capabilities/loan.yaml --inputs "amount=1000,d
 ```
 
 
-- Failure outcome: aborting the loan request
+2.6 Failure outcome: aborting the loan request
 
 Abort at the first prompt
 ```
