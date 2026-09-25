@@ -36,12 +36,12 @@ The public ParaBank `parabank.parasoft.com` is a shared sandbox that resets peri
    PARABANK_PASSWORD=<the password you just registered>
 ```
 
->Note: registered username and password will not work in the production app `parabank.parasoft.com` if you want to use your own credentials, so I would recommend going by the ones provided in the `.env.example`*
+>Note: The registered username and password will not work in the production app `parabank.parasoft.com` if you want to use your own credentials, so I would recommend going by the ones provided in the `.env.example`*
 
 
 ## Running without live services
-- **Without an API key:** replay never calls the LLM, so the artifacts committed in `/artifacts/` can be replayed with only ParaBank running.
-- **Without ParaBank:** nothing can run, but the committed `/artifacts/` and `/evidence/` show every stage of a real run.
+- **Without an Anthropic API key:** Discovery CLI commands cannot be run, but you can use existing `/artifacts/` to replay them deterministically.
+- **Without ParaBank:** nothing can run, but the committed `/artifacts/` and `/evidence/` show every stage of a real run. The default setup uses ParaBank locally on `http://localhost:8080/parabank` run by Docker, but you can switch it to point to the production service at `https://parabank.parasoft.com/parabank`
 
 
 ## Demo path
