@@ -3,8 +3,12 @@
 ## 1. Architecture
 The system runs a task in two ways. In discovery, an AI agent works out how to complete a goal in the browser, and its successful run is saved as a capability. In replay, a saved capability runs again with new inputs, step by step, without the AI.
 
-<p align="center">
+<!-- <p align="center">
     <img width="960" height="900" alt="image" src="https://github.com/user-attachments/assets/3a25da69-b092-405a-bc26-be65aba16ace" />
+</p> -->
+
+<p align="center">
+    <img width="1726" height="1274" alt="image" src="https://github.com/user-attachments/assets/9e34107a-ac47-4c71-8adf-d2fa553fd058" />
 </p>
 
 - **Agent (`src/agent/`):** on each turn, it describes the page to the model in text, together with the goal, and gets back exactly one action: `click`, `type_text`, `navigate`, `read`, `select_option`, or `done`. The description lists the page address, its title, the elements that can be clicked or typed into, and the start of the page text. Screenshots are saved as evidence but not sent to the model. The agent stops when the model says done (the CLI then checks the page to confirm success), when it has used its 15 steps or failed 3 actions in a row (both first ask a person for help), when the operator stops it, or when the start page can't be reached.
