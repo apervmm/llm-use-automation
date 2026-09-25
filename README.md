@@ -5,8 +5,10 @@
       ```
       python3 -m venv .venv && source .venv/bin/activate
       ```
-   * Windows:
+   * Windows PS:
      ```
+     python -m venv .venv
+     .venv\Scripts\Activate.ps1
      ```
 3. Install dependencies
    ```
