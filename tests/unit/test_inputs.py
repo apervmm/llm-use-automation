@@ -1,4 +1,3 @@
-"""Input validation: bad inputs are rejected before replay touches the browser."""
 from artifact.schema import Step, StepAction
 from replay.executor import input_errors, replay
 from replay.outcomes import ReplayStatus

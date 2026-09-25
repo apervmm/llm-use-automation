@@ -1,4 +1,3 @@
-"""Artifact store: qualified ids, versioning, and safe file names."""
 import pytest
 
 from artifact import store

@@ -1,4 +1,4 @@
-"""Recording: a successful agent run becomes a safe, parameterized artifact."""
+
 import pytest
 
 from agent.loop import AgentRunResult, TranscriptStep
@@ -10,8 +10,13 @@ LOAN_URL = "http://localhost:8080/parabank/requestloan.htm"
 
 
 def _step(n: int, tool: str, tool_input: dict, success: bool = True) -> TranscriptStep:
-    return TranscriptStep(step_num=n, page_url=LOGIN_URL, tool_name=tool,
-                          tool_input=tool_input, success=success, detail="")
+    return TranscriptStep(
+        step_num=n, 
+        page_url=LOGIN_URL, 
+        tool_name=tool,
+        tool_input=tool_input, 
+        success=success, detail=""
+    )
 
 
 def _login_run(transcript=None, success=True) -> AgentRunResult:
@@ -54,7 +59,6 @@ def test_password_appears_nowhere_in_the_artifact():
 
 
 def test_recording_fails_if_a_parameter_never_matched_a_typed_value():
-    # Simulates an unexpanded env var: the literal never appears in the transcript.
     with pytest.raises(ValueError, match="never matched"):
         _record_login(_login_run(), param_map={"john": "username", "${PARABANK_PASSWORD}": "password"})
 
@@ -107,7 +111,9 @@ def test_loan_is_recorded_as_risky_with_number_inputs():
     assert capability.capability_id == "parabank.request_loan"
     assert capability.risk_level == RiskLevel.RISKY
     assert {p.name: p.type for p in capability.inputs} == {
-        "amount": ParamType.NUMBER, "down_payment": ParamType.NUMBER, "from_account_id": ParamType.NUMBER,
+        "amount": ParamType.NUMBER, 
+        "down_payment": ParamType.NUMBER, 
+        "from_account_id": ParamType.NUMBER,
     }
     assert capability.steps[2].description == "Select '{from_account_id}' in 'From account #:'"
     assert "'{amount}'" in capability.description and "'{down_payment}'" in capability.description
