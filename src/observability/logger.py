@@ -27,6 +27,17 @@ def _to_jsonable(obj):
     return obj
 
 
+def _discovery_account_values(result) -> set[str]:
+    values = {str(v) for k, v in (result.outputs or {}).items() if "account" in k.lower() and str(v).isdigit()}
+    for step in result.transcript:
+        inp = step.tool_input or {}
+        if "account" in str(inp.get("element_name", "")).lower():
+            for key in ("option_value", "text"):
+                if str(inp.get(key, "")).isdigit():
+                    values.add(str(inp[key]))
+    return values
+
+
 def log_discovery(
     result: AgentRunResult, 
     evidence_dir: str, 
@@ -51,7 +62,11 @@ def log_discovery(
         "transcript": [_to_jsonable(step) for step in result.transcript],
     }
 
-    summary = redact_any(summary, sensitive_values=set(sensitive_values or []))
+    summary = redact_any(
+        summary, 
+        sensitive_values=set(sensitive_values or []),
+        masked_values=_discovery_account_values(result)
+    )
 
     path = out_dir / "result.json"
     path.write_text(json.dumps(summary, indent=2))

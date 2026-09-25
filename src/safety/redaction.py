@@ -31,11 +31,14 @@ def redact_any(obj, sensitive_values: set[str] | None = None,  masked_values: se
         # the sensitive value sits under a generic "text" key.
         el_name = str(obj.get("element_name", "")).lower()
         text_is_sensitive = any(k in el_name for k in ("password", "pin", "ssn"))
+        field_is_account = "account" in el_name
         for k, v in obj.items():
             if k.lower() in ("password", "pin", "ssn"):
                 out[k] = "[REDACTED]"
             elif k == "text" and text_is_sensitive:
                 out[k] = "[REDACTED]"
+            elif k in ("text", "option_value") and field_is_account and str(v).isdigit():
+                out[k] = mask_account(v)
             elif "account" in k.lower() and str(v).isdigit():
                 out[k] = mask_account(v)
             else:

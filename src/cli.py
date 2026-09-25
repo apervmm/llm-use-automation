@@ -6,6 +6,7 @@ import yaml
 from dotenv import load_dotenv
 from datetime import datetime, timezone
 import uuid
+import shutil
 
 load_dotenv()
 
@@ -149,6 +150,11 @@ def discover(config_path, max_steps):
     capability.outcome_rules.extend(OutcomeRule(**r) for r in config.get("outcome_rules", []))
 
     saved_path = store.save(capability)
+
+    evidence_artifacts = Path(evidence_dir).parent / "artifacts"
+    evidence_artifacts.mkdir(parents=True, exist_ok=True)
+    shutil.copy(saved_path, evidence_artifacts / saved_path.name)
+    
     click.echo(f"Capability saved to {saved_path} (version={capability.version}, risk_level={capability.risk_level.value})")
 
 
