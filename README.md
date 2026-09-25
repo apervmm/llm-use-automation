@@ -9,7 +9,7 @@
    
 
 ## Running ParaBank locally with Docker (recommended)
-The public ParaBank `parabank.parasoft.com` is a shared sandbox that resets periodically and can return server-side errors unrelated to this project. For reliable, reproducible runs, I would recomend using a local Docker instance
+The public ParaBank `parabank.parasoft.com` is a shared sandbox that resets periodically and can return server-side errors unrelated to this project. For reliable, reproducible runs, I would recommend using a local Docker instance
 
 1. Start the container:
 ```bash
@@ -19,41 +19,69 @@ The public ParaBank `parabank.parasoft.com` is a shared sandbox that resets peri
 ```bash
    curl -s -L http://localhost:8080/parabank/initializeDB.htm > /dev/null
 ```
-3. Register a test user, in a browser: `http://localhost:8080/parabank/register.htm`. Alternatively, you can use the default username and login provided from `.env.example`
+3. Register a test user in a browser: `http://localhost:8080/parabank/register.htm`. Alternatively, you can use the default username and login provided in `.env.example`
 
-4. In case if you wan to use own credentials. In `.env`, set:
+4. In case you want to use your own credentials. In `.env`, set:
 ```bash
    PARABANK_BASE_URL=http://localhost:8080
    PARABANK_USERNAME=<the username you just registered>
    PARABANK_PASSWORD=<the password you just registered>
 ```
 
->Note: registered username and password will not work in the production app `parabank.parasoft.com` if you want to use own credentials, so I would recomend going by the ones provided in the `.env.example`*
+>Note: registered username and password will not work in the production app `parabank.parasoft.com` if you want to use your own credentials, so I would recommend going by the ones provided in the `.env.example`*
 
 
-## Run
+## Demo path
 
-To create a LLM discory artifact and evidence to login
+The loan capability replays the login capability first (auth_capability_id in capabilities/loan.yaml), so record the login first.
+
+### 1. Discovery: 
+To create an LLM discovery artifact and evidence to log in
 ```bash
 python -m src.cli discover --config capabilities/login.yaml
 ```
 
-To create a LLM discory artifact and evidence to login
+To create an LLM discovery artifact and evidence of requesting loan
 ```bash
 python -m src.cli discover --config capabilities/loan.yaml
 ```
 
-To run successful deterministic replay 
-```bash
+In the `/artifacts/` folder, you should see new populated artifacts with new versions.
+
+### 2. Replay: scenarios
+- Success outcome: login succeeded
+```
+python -m src.cli replay --config capabilities/login.yaml --inputs "username=john,password=demo"
+```
+
+- Business outcome: Wrong password 
+```
+python -m src.cli replay --config capabilities/login.yaml --inputs "username=john,password=wrong"
+```
+
+
+- Success outcome: Loan Approved
+  Type resume and enter the note
+```
 python -m src.cli replay --config capabilities/loan.yaml --inputs "amount=1000,down_payment=10,from_account_id=13344"
 ```
 
-To run determinisctic buisness outcome replay, because of insuficient balance
-```bash
-python -m src.cli replay --config capabilities/loan.yaml --inputs "amount=100000,down_payment=90000,from_account_id=13344"
+
+- Business outcome: Loan Denied
+  Type resume and enter the note
+```
+python -m src.cli replay --config capabilities/loan.yaml --inputs "amount=100000,down_payment=1,from_account_id=13344"
 ```
 
-To run determiniscit failing outcome, because of non-existing account
-```bash
+- Failure outcome: Account does not exist
+  Type resume and enter the note, then abort
+```
 python -m src.cli replay --config capabilities/loan.yaml --inputs "amount=1000,down_payment=10,from_account_id=99999"
+```
+
+
+- Failure outcome: aborting the loan request
+  Abort at the first prompt
+```
+python -m src.cli replay --config capabilities/loan.yaml --inputs "amount=1000,down_payment=10,from_account_id=13344"
 ```
