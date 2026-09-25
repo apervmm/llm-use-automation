@@ -61,27 +61,31 @@ python -m src.cli replay --config capabilities/login.yaml --inputs "username=joh
 
 
 - Success outcome: Loan Approved
-  Type resume and enter the note
+
+Type resume and enter the note
 ```
 python -m src.cli replay --config capabilities/loan.yaml --inputs "amount=1000,down_payment=10,from_account_id=13344"
 ```
 
 
 - Business outcome: Loan Denied
-  Type resume and enter the note
+
+Type resume and enter the note
 ```
 python -m src.cli replay --config capabilities/loan.yaml --inputs "amount=100000,down_payment=1,from_account_id=13344"
 ```
 
 - Failure outcome: Account does not exist
-  Type resume and enter the note, then abort
+
+Type resume and enter the note, then abort
 ```
 python -m src.cli replay --config capabilities/loan.yaml --inputs "amount=1000,down_payment=10,from_account_id=99999"
 ```
 
 
 - Failure outcome: aborting the loan request
-  Abort at the first prompt
+
+Abort at the first prompt
 ```
 python -m src.cli replay --config capabilities/loan.yaml --inputs "amount=1000,down_payment=10,from_account_id=13344"
 ```
