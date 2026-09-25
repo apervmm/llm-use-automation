@@ -48,6 +48,7 @@ Based on the assignment specification, the system has to have two distinct flows
 - **A fixed action set over free-text actions.** Every turn, the model must return one call from a closed set (`click`, `type_text`, `navigate`, `read`, `select_option`, `done`) rather than a free-form response. This makes actions reliably parseable and keeps the transcript close to the artifact schema's own shape, at the cost of flexibility like drag-and-drop, etc.
 - **A text observation over screenshots.** The model chooses from a list of named interactive elements, and each of those already carries a locator and fallbacks. So whatever the model clicks can be recorded as a replayable step without any image understanding at replay time. The cost is that the model can't use purely visual information, such as an unlabeled icon or a canvas.
 - **Surface as the one seam both Agent and Replay go through.** Neither component talks to Playwright or raw HTML directly — both act only through `Surface`'s methods and see only `PageState`/`ElementRef`. This is the seam that would let a future desktop or legacy-app surface (see Section 4) be swapped in by writing a new session class with the same methods and a matching `perception.py`, without touching the agent loop, artifact schema, or replay engine. The cost is that everything, every click and every read, is forced through this one interface, even where a more direct call would be simpler.
+- **A config file per capability.** Each capability starts from a short YAML file written by a person (`capabilities/login.yaml`, `capabilities/loan.yaml`): the goal, the start page, which values become inputs, how success is checked, and which answers count as normal results. The agent only works out the steps. This keeps the decisions that make replay trustworthy out of the LLM's hands, and a file is easier to review, change, and reuse than a long command with a paragraph-long goal. The cost is writing a config for each new capability. 
 
 
 ## 2. Artifact schema
@@ -420,16 +421,44 @@ Every escalation is appended to the run's result.json with the request, the oper
 4. **The operator must be at the same computer.** The prompt appears in the terminal that started the run, and the browser opens on that screen. A production version needs a web console for operators; the assignment allows this to be mocked.
 5. **No time limit.** The run waits for an answer indefinitely.
 
-## 6. Safety
-*your guardrail model and its limits.*
 
+## 6. Safety
+There are three safeguards: a list of allowed pages and actions, approval for risky capabilities, and keeping sensitive values out of saved files.
+
+### Allowed pages and actions
+`config/allowlist.yaml` lists the sites, pages, and actions the system may use. Every action is checked against it first. Links and new windows that lead to a page not on the list are stopped before the page loads; this also applies to the operator during a handoff. A server can still redirect to another page, so the address is checked again after each action.
+
+In replay, a blocked action ends the run immediately, and the operator can't override it. In discovery, the agent is told the action failed and can try another way.
+
+
+### Risky capabilities need approval
+Partially discussed in Section 5, Capabilities that move money or open accounts (loan requests, transfers, bill payments, new accounts) are marked risky, based on their name. Before one runs, the operator sees exactly what will be submitted and the current account balance, and must approve it. Blocking these capabilities would make them useless, and only flagging them would let a loan be requested without anyone checking. A caller that already has approval can skip the prompt with `--confirmed`.
+
+### Sensitive Data
+1. Saved capabilities contain placeholders like `{password}` instead of real values. If a password would otherwise end up in the file, recording fails.
+2. Run logs hide passwords, PINs, social security numbers, card-length numbers, and login credentials wherever they appear:
+    ```
+      "inputs": {
+        "username": "john",
+        "password": "[REDACTED]"
+      },
+    ```
+
+### Limits
+1. Discovery doesn't need approval. The agent completes the task itself, so discovering the loan capability requested a real loan. Discovery of risky capabilities should need approval or run only in a test environment.
+2. Page content is sent to the AI model. During discovery, names, balances, account numbers, and the login credentials go to Anthropic's API. 
+3. Screenshots aren't redacted. They show names, balances, and account numbers.
+4. Some sensitive data isn't recognized. ParaBank's 5-digit account numbers, names, and addresses appear in logs.
+5. Risk depends on the capability's name. A risky capability with an unexpected name is treated as safe.
 
 ## 7. Cuts
-Automated tests. Behavior was checked with one-off scripts against the local ParaBank. They should become a test suite.
-Some outputs are guessed from their names. If no step reads an output from the page, an output named like login_succeeded is set to "true" or "false" from the run's result, and any other output comes back empty. Each output should state where its value comes from.
-loan_status copies the run's result. Reading the status from the page sometimes returns the label ("Status:") instead of the value, so it's taken from the result instead. Once page reading is reliable, it should come from the page.
-Loan wording in shared code. The approval message ("This will submit a NEW loan application…") is written into code that every capability uses. Each capability should define its own.
-An operator web page, recording the operator's actions, and the done answer (Section 5).
-Handling known interruptions automatically, such as confirmation boxes or expired sessions. Today they fail the step and go to the operator.
-Other apps and multiple clients (Section 4): designed, not built.
-Safer discovery: approval before risky submissions, and hiding sensitive data from the AI model and from screenshots (Section 6).
+1. Automated tests. Behavior was checked with one-off scripts against the local ParaBank. They should become a test suite.
+2. Some outputs are guessed from their names. If no step reads an output from the page, an output named like login_succeeded is set to "true" or "false" from the run's result, and any other output comes back empty. Each output should state where its value comes from.
+3. loan_status copies the run's result. Reading the status from the page sometimes returns the label ("Status:") instead of the value, so it's taken from the result instead. Once page reading is reliable, it should come from the page.
+4. Loan wording in shared code. The approval message ("This will submit a NEW loan application…") is written into code that every capability uses. Each capability should define its own.
+5. An operator web page, recording the operator's actions, and the done answer (Section 5).
+Handling known interruptions automatically, such as confirmation boxes or expired sessions.
+6. Today they fail the step and go to the operator.
+7. Other apps and multiple clients (Section 4): designed, not built.
+8. Safer discovery: approval before risky submissions, and hiding sensitive data from the AI model and from screenshots (Section 6).
+9. **Approval before unattended runs.** Risky capabilities always need an operator's confirmation. To let them run unattended, each capability would start as a draft and be marked approved by a reviewer once it replays reliably, with the approval recorded.
