@@ -150,7 +150,7 @@ class Capability(BaseModel):
       - `read_label`: for `read` steps, the name the value is stored under. At the end of replay, each output looks up its `source_label` among these names, which is how `new_account_id` is returned. A `read` step with no target is skipped at replay.
       - `description`: a plain-English summary of the step like "click" or "login", generated automatically for readability when someone inspects the saved artifact.
 
-    - `checkpoint`: the single condition that defines success, where `kind` is what to inspect and `expected` is what value to expect.
+  - `checkpoint`: the single condition that defines success, where `kind` is what to inspect and `expected` is what value to expect.
         ```
         class Checkpoint(BaseModel):
             kind: Literal["url_contains", "element_visible", "text_visible"]
