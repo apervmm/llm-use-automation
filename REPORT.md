@@ -108,10 +108,10 @@ The result types above only work if each runtime problem is sent to the right on
 2. **Slow render or redirect:** each locator waits up to 3s, and the checkpoint is polled every 250ms for up to 5s. Replay continues. 
 3. **Primary locator not found:** the next fallback is tried, with the name check. Replay continues. 
 4. **Known app message:** matched by `outcome_rules` -> `BUSINESS_OUTCOME`. 
-5. **Action outside the allowlist:** every action checks the current URL against the allowlist first, and a top-level navigation to a route outside it, in the main tab or a popup, is cancelled before the page loads, so the browser stays where it was (see Limits for redirects).-> `FAILURE`, with no escalation, e.g. `Policy violation at step 3: Route '/parabank/overview.htm' is not in the allowed routes`.
-6. **Entry page unreachable:** a 15s timeout, checked before step 1 -> `FAILURE` at step 0. 
+5. **Action outside the allowlist:** every action checks the current URL against the allowlist first, and a top-level navigation to a route outside it, in the main tab or a popup, is cancelled before the page loads, so the browser stays where it was (see Limits for redirects) -> `FAILURE`, with no escalation, e.g. `Policy violation at step 3: Route '/parabank/overview.htm' is not in the allowed routes`.
+6. **Entry page unreachable:**a 15s timeout or a connection error (server down), checked before step 1 -> `FAILURE` at step 0. 
 7. **Unexpected JavaScript dialog (`alert`, `confirm`, `prompt`):** dismissed, never accepted, and the step that caused it fails with the dialog's text, e.g. `Unexpected dialog(s) dismissed: ['confirm: Really log in?']`. It then goes through outcome rules and escalation like any failed step.
-8. **Step fails, and no rule matches:** escalated. The operator fixes it in the live session, then the step is retried once, with the same dialog and policy checks as the first attempt; dialogs raised while the operator was in control are discarded first. If the retry fails -> `FAILURE`.
+8. **Step fails, and no rule matches:** escalated to operator. On `resume`, the step is retried once, with the same dialog and policy checks as the first attempt; dialogs raised while the operator was in control are discarded first. If the retry fails -> `FAILURE`.
 9. **Risky capability not confirmed:** after the inputs are validated and before step 1, the operator must confirm. If aborted -> `FAILURE`. 
 
 The first three are recovered automatically. The rest either return a known result or stop with a clear error.
@@ -159,7 +159,7 @@ Legacy web apps use the same surface, but their markup is harder to target. The 
 
 ### Desktop apps
 To extend desktop support, the system needs a new surface class:
-1. **`DesktopSession`** implements the same five actions using an OS accessibility API (e.g. UI Automation on Windows), with `pop_dialogs` reporting unexpected modal windows.
+1. **`DesktopSession`** implements the same methods using an OS accessibility API (e.g. UI Automation on Windows), with `pop_dialogs` reporting unexpected modal windows.
 2. **`snapshot()`** reads the accessibility tree instead of the DOM and returns the same `PageState`: interactive elements, visible text, screenshot.
 3. **Locators** use `role_name` (an accessible role and name, e.g.
    `button` / "Log In"). It comes from the accessibility tree, which
@@ -182,29 +182,26 @@ Many tenants run the same vendor product with different branding, URLs, and sett
 
 At replay time, the override is merged onto the base artifact. A tenant with no differences needs no override. A base artifact is not trusted on a new tenant until a test replay passes; if it fails, the tenant gets an override or a new discovery run instead of a silently broken capability.
 
-Part of this already exists: the base URL comes from `PARABANK_BASE_URL`, so the same capability config runs against localhost or the public demo. The saved artifact still stores the full `entry_url`, so the next step is to store a relative path and resolve
-the host per tenant.
+Part of this already exists: the base URL comes from `PARABANK_BASE_URL`, so the same capability config runs against localhost or the public demo. The saved artifact still stores the full `entry_url`, so the next step is to store only the page path and add each client's address at replay.
 
 ### Noticing when an app changes
-The vendor releases new versions, and clients install them at different times, so a recording that works for one client can break for another. This isn't built yet, but are 3 signs that I believe can show up at replay:
+The vendor releases new versions, and clients install them at different times, so a recording that works for one client can break for another. This isn't built yet, but three signs would show up in the results of the replay:
 1. The main way of finding an element fails, but a fallback works, as a button's ID changed, but its name didn't. The run still succeeds, but the page has changed. Replay would need to log this, but it doesn't yet.
 2. One client fails at the same step every time, while other clients pass. That client has probably upgraded to a new version.
-3. The page shows a message where no outcome rule recognizes
+3. The page shows a message where no outcome rule is recognized
 
 The fix is a new discovery run for that client. If only that client changed, the differences go into its override file; if many clients changed, the shared recording gets a new version. Clients that haven't upgraded keep using the old version.
 
-When drift is detected, discovery is re-run for that tenant. The differences are saved as a tenant override, or as a new base version if many tenants are affected. Tenants that have not upgraded keep using the previous version.
-
 ### Limits
 1. **Built:** the surface/flow split, `ElementRef` with a locator kind and fallback chain, the shared `ActionResult` and `PageState` types, and base-URL switching through an environment variable.
-2. **Not built:** a surface interface class, desktop or iframe support, tenant overrides, test replays for new tenants, and drift logging, locator strategies for specific surfaces.
+2. **Not built:** a surface interface class, desktop or iframe support, tenant overrides, test replays for new tenants, and drift logging, locator strategies for other surfaces.
 
 
 ## 5. Escalation & handoff
-All escalations use one mechanism: automation pauses, a human takes over the same live browser session the automation was using, and then hands control back with a decision.
+All escalations use one mechanism: automation pauses and shows the problem to an operator. The operator can see the same browser window, but only their decision to continue or stop affects the run (see Limits).
 
 ### Detecting when to escalate
-1. `dicovery_stuck`: triggered when the step limit is reached, 3 actions fail in a row, or the model returns no action.
+1. `discovery_stuck`: triggered when the step limit is reached, 3 actions fail in a row, or the model returns no action.
 2. `replay_failure`: triggered when the step fails and no `outcome_rule` matches the page, or the checkpoint isn't met and no `outcome_rule` matches
 3. `risky_confirmation`: triggered before step 1 of any capability classified as risky (see Section 6)
 
@@ -229,9 +226,9 @@ The operator sees the reason, task, step, URL, and detail in the terminal. For a
 
 ### Taking control
 Discovery and replay always run in a visible browser window. When an escalation is raised:
-1. The browser window is brought to the front. It is the same session, with the same login, cookies, and page, so the operator continues exactly where automation stopped.
+1. The browser window is brought to the front. It is the same session, with the same login, cookies, and page, so the operator sees exactly where automation stopped.
 2. `HandoffState.automation_in_control` is set to False, recording that the human is in control.
-3. Automation blocks on the operator prompt. Because execution is synchronous (Section 1), no automated action can happen while the human is working in the browser.
+3. Automation waits at the operator prompt, so no automated action happens while the operator has the browser.
 
 ### Handing control back
 The operator types `resume` or `abort`, and can add a note describing what they did. 
@@ -253,9 +250,9 @@ Every escalation is appended to the run's result.json with the request, the oper
       "capability_or_goal": "parabank.request_loan",
       "current_step": 3,
       "current_url": "http://localhost:8080/parabank/requestloan.htm",
-      "detail": "Step 3 (select_option) failed: The dropdown has 14 option(s): ['12456', '12567', '12678', '12789', '12900', '13011', '13122', '13233', '54321', '13566', '12345', '13677', '13788', '13344']. '99999' isn't one of them. | raw error: TimeoutError: Locator.select_option: Timeout 5000ms exceeded.",
-      "screenshot_path": "evidence/replay_request_loan_20260925T034756Z_8deaf537c58b/escalation_3de8c79df3c64363a3670539d2e0efa6.png",
-      "timestamp": "2026-09-25T03:48:09.469175+00:00",
+      "detail": "Step 3 (select_option) failed: The dropdown has 14 option(s): ['12456', '12567', '12678', '12789', '12900', '13011', '13122', '13233', '54321', '13566', '12345', '13677', '13788', '13344']. '***99' isn't one of them. | raw error: TimeoutError: Locator.select_option: Timeout 5000ms exceeded.",
+      "screenshot_path": "evidence/replay_request_loan_20260925T133458Z_9616823d450d/escalation_e767127e1f1445598470608962201e71.png",
+      "timestamp": "2026-09-25T13:35:10.414832+00:00",
       "operator_decision": "abort",
       "human_actions": []
     }
@@ -278,11 +275,11 @@ In replay, a blocked action ends the run immediately, and the operator can't ove
 
 
 ### Risky capabilities need approval
-Partially discussed in Section 5, Capabilities that move money or open accounts (loan requests, transfers, bill payments, new accounts) are marked risky, based on their name. Before one runs, the operator sees exactly what will be submitted and the current account balance, and must approve it. Blocking these capabilities would make them useless, and only flagging them would let a loan be requested without anyone checking. A caller that already has approval can skip the prompt with `--confirmed`.
+Partially discussed in Section 5, Capabilities that move money or open accounts (loan requests, transfers, bill payments, new accounts) are marked risky, based on their name. Before one runs, the operator sees exactly what will be submitted and the current account balance, and must approve it. Blocking these capabilities would make them useless, and only flagging them would let a loan be requested without anyone checking. 
 
 ### Sensitive Data
 1. Saved capabilities contain placeholders like `{password}` instead of real values. If a password would otherwise end up in the file, recording fails.
-2. Run logs hide passwords, PINs, social security numbers, card-length numbers, and login credentials wherever they appear:
+2. Run logs hide passwords, PINs, Social Security numbers, card-length numbers, and login credentials wherever they appear:
     ```
       "inputs": {
         "username": "john",
@@ -300,7 +297,7 @@ Partially discussed in Section 5, Capabilities that move money or open accounts 
 ## 7. Cuts
 1. Outputs are guessed from their names. When no step reads an output from the page, an output named like `login_succeeded` is set to "true" or "false" from the result, and any other output comes back empty. Each output should state where its value comes from.
 2. `loan_status` copies the result. Reading the status from the page sometimes returns the label ("Status:") instead of the value, so it's taken from the result. Once page reading is reliable, it should come from the page.
-3. Operator tools: a web page for operators, recording what the operator did on the surface/browser at escalation, which can be extended to the replay to continue its running.
+3. Operator tools. Today the operator only decides `resume` or `abort`; what they do in the browser isn't used or recorded (Section 5). Next: a web page for operators, keeping the browser usable while the run waits, recording the operator's clicks and typing, and a third answers.
 4. Automatic recovery from known interruptions, such as confirmation boxes and expired sessions (Section 3).
 5. Other apps and multiple clients (Section 4): designed, not built.
 6. Safer discovery approval before risky submissions, and hiding sensitive data from the AI model and from screenshots (Section 6).
