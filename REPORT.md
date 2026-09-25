@@ -7,17 +7,23 @@ Based on the assignment specification, the system has to have two distinct flows
     <img width="960" height="900" alt="image" src="https://github.com/user-attachments/assets/3a25da69-b092-405a-bc26-be65aba16ace" />
 </p>
 
-- **Agent:** takes a goal and a starting URL. On each turn it takes a snapshot of the current page, sends that state plus the goal to the model, and asks for one next action from a fixed set: `click`, `type_text`, `navigate`, `read`, `select_option`, or declare the goal done. It executes that one action, records whether it succeeded, and feeds the result back in before asking for the next actio and repeats until:
+- **Agent (`src/agent/`):** takes a goal and a start URL. On each turn, it observes the page, sends the observation and the goal to the model, and asks for exactly one next action from a fixed set: `click`, `type_text`, `navigate`, `read`, `select_option`, or `done`. The observation is text: the URL, the page title, the interactive elements (role, name, and dropdown options), and the start of the visible page text. A screenshot of every step is saved as evidence but not sent to the model. The agent executes the action through the surface, records whether it succeeded, and feeds the result back before asking for the next action. The one exception is read: the model reports the value it sees in the page text, and the loop records it. If the model names the element the value came from, that element is saved as the step's target, so replay can read it from the page later. The run ends when:
 
-1. the model reports the goal is done
-2. the step limit (15) is reached — extendable by 3 more steps if a human resumes from escalation
-3. 3 consecutive failed actions occur — also escalates to a human
+    1. the model reports the goal is `done`.
+    2. the step limit (15 by default) is reached — extendable by 3 more steps if a human resumes from escalation
+    3. 3 consecutive failed actions occur — also escalates to a human
+    4. The human aborts at an escalation, or the escalation budget (2 per run) is used up.
+    5. The start page can't be reached before the model is called at all.
 
 
-- **Replay:** Takes a saved artifact — loaded by capability ID from the `/artifacts/` store — and a set of input values supplied by the caller at invocation time `--input` flag. It walks the artifact's steps in the recorded order, substituting each input into the step that expects it, and executes each step against the same kind of session the agent used. After the last step, it checks whether the artifact's declared condition for success actually holds on the page. 
+- **Replay (`src/replay/`):** is started with the same YAML config used for discovery `--config` and the caller's values `--inputs "amount=1000,down_payment=10,from_account_id=13344"`. It loads the latest saved version of the capability, or a pinned one with `--version`. Before anything touches the browser, it checks the inputs against the artifact: required names present, no unknown names, every `{placeholder}` filled, and numbers where numbers are declared. A risky capability then needs an operator's confirmation. It runs the steps in `step_num` order, filling each `{param}` from the inputs, through the same surface the agent used. After the last step, it checks the checkpoint, then the outcome rules, and returns `SUCCESS`, `BUSINESS_OUTCOME`, or `FAILURE` (see Section 3).
 
-- **Surface:** is the layer where both Agent and Replay act on — a single wrapper around one browser session that   neither of them bypasses, where their interactions on the actions are exectuted through actions methods `read_text`, `click`, `goto`, `select_option`, or `type_text`.
-  It provides a `snapshot()` for agent that constructs a `pageState`, which consist of the `interactive elements`, `visible text` and a `screenshot` of the page to work on. 
+- **Recorder and store (`src/artifact/`):** turn a successful agent run into a Capability artifact (Section 2) and save it as a new version in /artifacts/.
+  
+- **Surface (`src/surface/`):** is `BrowserSession` together with `perception.py`: a wrapper around one Playwright browser session. Agent, Replay, and the escalation module act on the page only through it; nothing outside `src/surface/` calls Playwright directly. It provides:
+  1. **Actions**: `click`, `type_text`, `select_option`, `read_text`, and `goto`. Each checks the allowlist first and returns an ActionResult.
+  2. **Observation**: `perception.snapshot(session)` builds a PageState for the agent: the interactive elements (each with a locator and fallbacks), the visible text, and a screenshot.
+  3. **Helpers** used by replay and escalation: `get_url`, `get_visible_text`, `wait`, `is_visible`, `screenshot`, `bring_to_front`, and `pop_dialogs`, which reports any JavaScript dialog that appeared and was dismissed.
 
     ```python
     @dataclass
@@ -29,7 +35,14 @@ Based on the assignment specification, the system has to have two distinct flows
         screenshot_path: Optional[str] = None
     ```
 
-- **CLI:** is an orchestrator layer that brings `surface`, `artifacts`, `agent`, and `replay` together.
+- **Escalation (`src/escalation/`):** hands the live browser to a human operator when the agent is stuck, a replay step fails, or a risky capability needs confirmation, and records the operator's decision (see Section 5).
+
+- **Safety (`src/safety/`):** the allowlist that every action is checked against, and redaction of sensitive values in artifacts and logs (see Section 6).
+  
+- **CLI (`src/cli.py`):** is the orchestrator, where
+  1. `discover` runs the agent, checks the checkpoint, and records and saves the artifact.
+  2. `replay` validates the inputs before opening the browser and then runs the replay from the artifact.
+  Each run writes its evidence to its own folder under `/evidence/`.
 
 **Key decisions and trade-offs:**
 
