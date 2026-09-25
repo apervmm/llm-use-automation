@@ -235,11 +235,12 @@ class BrowserSession:
             return ActionResult(False, "select_option", label, error=str(e), policy_violation=True)
         except Exception as e:
             diagnosis = self._diagnose_select_failure(loc, value)   # loc, not ref
+            first_line = str(e).splitlines()[0]
             return ActionResult(
                 False, 
                 "select_option", 
                 label,
-                error=f"{diagnosis} | raw error: {type(e).__name__}: {e}"
+                error=f"{diagnosis} | raw error: {type(e).__name__}: {first_line}"
         )
 
 
