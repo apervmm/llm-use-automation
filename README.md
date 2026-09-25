@@ -39,6 +39,11 @@ The public ParaBank `parabank.parasoft.com` is a shared sandbox that resets peri
 >Note: registered username and password will not work in the production app `parabank.parasoft.com` if you want to use your own credentials, so I would recommend going by the ones provided in the `.env.example`*
 
 
+## Running without live services
+- **Without an API key:** replay never calls the LLM, so the artifacts committed in `/artifacts/` can be replayed with only ParaBank running.
+- **Without ParaBank:** nothing can run, but the committed `/artifacts/` and `/evidence/` show every stage of a real run.
+
+
 ## Demo path
 
 ### 1. Discovery: 
