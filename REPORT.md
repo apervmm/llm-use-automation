@@ -79,44 +79,44 @@ class Capability(BaseModel):
     risk_level: RiskLevel = RiskLevel.SAFE
 ```
 
-- **Identity/Version Control:** is used specifically for versioning and grouping artifact schemas populated by discovery runs, it consist of the unique `capability_id`. The `version` auto-increments against existing files on disk. The `description` is populated automatically from the discovery goal, giving a human-readable summary. The `target_app` is currently fixed to `"parabank"` - to expand generacally for different apps. So the path for the versioned artifact would look like this: `<target_app>.<capability_id>.v<N>.json`
+- **Identity/Version Control:** is used specifically for versioning and grouping artifact schemas populated by discovery runs; it consists of the unique `capability_id`. The `version` auto-increments against existing files on disk. The `description` is populated automatically from the discovery goal, giving a human-readable summary. The `target_app` is currently fixed to `"parabank"` - to expand generically for different apps. So the path for the versioned artifact would look like this: `<target_app>.<capability_id>.v<N>.json.`
 
 - **Entry Point:** `entry_url` is where replay begins — the browser navigates here before the first step executes. Kept separate from `steps[]` because it isn't an action so much as a precondition for step 1 to make sense.
 
-- **Behavioral Contract:** is a tracable actions of discovery runs that consists of `inputs`, `outputs`, `steps`, `checkpoint`, and `outcome_rules`, where they together define what actually happens when a capability runs and how its result is judged.
-  - `inputs`: values supplied at replay time (e.g. `username`, `password`). Kept explicit rather than inferred, so a human decides what's parameterized — and sensitive examples (password/pin/ssn) are redacted before saving.
+- **Behavioral Contract:** is a traceable set of actions of discovery runs that consists of `inputs`, `outputs`, `steps`, `checkpoint`, and `outcome_rules`, where they together define what actually happens when a capability runs and how its result is judged.
+  - `inputs`: values supplied at replay time like `username` or `amount`. They are declared explicitly in the discovery config rather than inferred, so a human decides what's parameterized.
     ```
     class InputParam(BaseModel):
-        name: str                         
+        name: str
+        type: ParamType = ParamType.STRING                  
         description: str = ""
         required: bool = True
         example: Optional[str] = None
     ```
-  - `outputs`: the actual data a capability hands back (confirmation message, success status). How a value is produced differs by when it happens. During discovery, the agent self-reports these values itself when it finishes. During replay, values come from `_extract_outputs()` instead, using each field below.
+    - `name`: the placeholder used in step values (`{amount}`) and the key the caller passes in `--inputs`.
+    - `type`: inferred at record time from the value the agent actually used (`1000` -> `number`, `demo` -> `string`) and enforced before replay starts, so `amount=abc` is rejected at step 0.
+    - `description`: optional notes, not currently populated.
+    - `required`: whether replay rejects a run that doesn't supply this input. Every recorded input is currently required.
+    - `example`: the value used during discovery, so a reader can see what a valid input looks like. Sensitive examples (`password`, `pin`, `ssn`) are saved as `[REDACTED]`.
+    
+    Recording also fails if a declared parameter never matched a typed or selected value, so a credential can't end up stored as a literal step value (Section 6).
+
+  - `outputs`: he data a capability hands back (e.g. `login_succeeded`, `loan_status`, `new_account_id`). During discovery, the agent reports these values itself when it finishes. During replay, `_extract_outputs()` produces them from the fields below.
     ```
     class OutputField(BaseModel):
-        name: str                         
+        name: str
+        type: ParamType = ParamType.STRING                  
         description: str = ""
         source_label: str = ""    
         derived_from_outcome: bool = False   
     ```
-     - `name`: the key the caller sees in the result, e.g.
-    `login_succeeded`.
-    - `source_label`: which live `read` step this value comes from during
-        replay, matched against that step's `read_label`.
-    - `derived_from_outcome`: `true` means this value is set from whether
-        replay succeeded or hit a business outcome, instead of being read
-        from the page. This is partially redundant with `ReplayResult`'s
-        own `status`/`outcome_name` fields, and I considered removing it (See 7.Cuts)
-        but doing so makes fields like `loan_status` depend entirely on a
-        live `read` of plain page text, and reading a value sitting *next
-        to* a label (rather than inside a clickable element) isn't
-        reliable yet (see Cuts). Kept deliberately for now, as a fallback
-        that doesn't depend on a read path that can still silently return
-        the wrong thing.
-    - `description`: optional notes — not currently populated anywhere.
+    - `name`: the key the caller sees in the result, e.g., `new_account_id`.
+    - `type`: always `string` for now, because every output value is read from page text.
+    - `description`: optional notes, not currently populated.
+    - `source_label`: which `read` step's value this output takes during replay, matched against that step's `read_label`.
+    - `derived_from_outcome`: `true` means the value comes from how replay ended rather than from the page: `"success"` on `SUCCESS`, the matched outcome rule's name on `BUSINESS_OUTCOME` (e.g. `insufficient_funds`), and `null` on `FAILURE`. `loan_status` uses this. It partly duplicates `ReplayResult.status` / `outcome_name`; it is kept because reading a status that sits next to a label in plain page text isn't reliable yet (see Cuts).
 
-  - `steps`: the ordered actions to replay.
+  - `step`: the ordered actions to replay.
     ```
     class StepAction(str, Enum):
         CLICK = "click"
@@ -136,22 +136,26 @@ class Capability(BaseModel):
       - `step_num`: the step's position in the sequence — replay runs
     steps in this order, not the order they appear in the file.
       - `action`: which of the five actions to perform.
-      - `target`: which element to act on using an `ElementRef`, which consists of a locator and
-        fallback chain saved from what worked live during discovery. `None` for `navigate`, since            there's no element to find.
-      - `value`: the text to type, or the option to select. Holds either a
-        literal or a `{param}` placeholder, depending on whether it was
-        parameterized when recorded.
-      - `read_label`: a human-readable name for what a `read` step
-        captured (e.g. "confirmation message"). Currently just a label for
-        logging/description purposes — despite the code comment, it isn't
-        actually linked to an `OutputField` in the codebase yet.
+      - `target`: the element to act on, as an `ElementRef`: a primary locator plus a fallback chain, all captured from the element used during discovery (Section 3). `None` for `navigate`, and for a `read` whose value didn't come from a specific element.
+        ```
+        @dataclass
+        class ElementRef:
+              strategy: LocatorStrategy          # css | role_name | text | xpath
+              value: str
+              role: Optional[str] = None
+              expected_name: Optional[str] = None
+              fallbacks: list["ElementRef"] = field(default_factory=list)
+        ```
+      - `value`: the text to type, or the option to select. Holds either a literal or a `{param}` placeholder, depending on whether it was parameterized when recorded.
+      - `read_label`: for `read` steps, the name the value is stored under. At the end of replay, each output looks up its `source_label` among these names, which is how `new_account_id` is returned. A `read` step with no target is skipped at replay.
       - `description`: a plain-English summary of the step like "click" or "login", generated automatically for readability when someone inspects the saved artifact.
-  - `checkpoint`: the single condition that defines success, where `kind` is what to inspect and `expected` is what value to expect.
-    ```
-    class Checkpoint(BaseModel):
-        kind: Literal["url_contains", "element_visible", "text_visible"]
-        expected: str      
-    ```
+
+    - `checkpoint`: the single condition that defines success, where `kind` is what to inspect and `expected` is what value to expect.
+        ```
+        class Checkpoint(BaseModel):
+            kind: Literal["url_contains", "element_visible", "text_visible"]
+            expected: str      
+        ```
   - `outcome_rule`: named, expected non-success results. Checked only if the checkpoint fails — this keeps a normal negative answer separate from an actual error.
     ```
     class OutcomeRule(BaseModel):
@@ -174,10 +178,8 @@ class Capability(BaseModel):
 </p> -->
 
 
-- **Additional Features**
-  1. A capability that depends on another (e.g. `parabank.request_loan` needs `parabank.login` first) doesn't embed the dependency's steps. 
-  
-  Instead, the capability's *recording config*, a separate YAML file, names an `auth_capability_id`, which the CLI replays first. This keeps each saved `Capability` single-purpose and independently replayable.
+**Additional Features**
+  1. A capability that depends on another (e.g., `parabank.request_loan` needs `parabank.login` first) doesn't embed the dependency's steps. Instead, its discovery config names an `auth_capability_id`, which the CLI replays first. This keeps each saved `Capability` single-purpose and independently replayable.
 
 
 
