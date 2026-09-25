@@ -10,15 +10,15 @@
      python -m venv .venv
      .venv\Scripts\Activate.ps1
      ```
-3. Install dependencies
+2. Install dependencies
    ```
    pip install -r requirements.txt && playwright install chromium
    ```
-5. Copy `.env.example` to `.env`
+3. Copy `.env.example` to `.env`
    ```bash
       cp .env.example .env
    ```
-6. Then your `.env` file should look like this:
+4. Then your `.env` file should look like this:
    ```
    ANTHROPIC_API_KEY=
    #PARABANK_BASE_URL=https://parabank.parasoft.com
