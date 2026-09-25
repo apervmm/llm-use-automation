@@ -1,22 +1,15 @@
 
 
 ## 1. Architecture
-Based on the assignment specification, the system has to have two distinct flows of the execution: non-deterministic llm `agent` to generate `artifact`, and deterministic `replay` mechanism to use this the same artifact for reproduction. The system is restructured into independent modular components that gets used as shown in diagram below.
+The system runs a task in two ways. In discovery, an AI agent works out how to complete a goal in the browser, and its successful run is saved as a capability. In replay, a saved capability runs again with new inputs, step by step, without the AI.
 
 <p align="center">
     <img width="960" height="900" alt="image" src="https://github.com/user-attachments/assets/3a25da69-b092-405a-bc26-be65aba16ace" />
 </p>
 
-- **Agent (`src/agent/`):** takes a goal and a start URL. On each turn, it observes the page, sends the observation and the goal to the model, and asks for exactly one next action from a fixed set: `click`, `type_text`, `navigate`, `read`, `select_option`, or `done`. The observation is text: the URL, the page title, the interactive elements (role, name, and dropdown options), and the start of the visible page text. A screenshot of every step is saved as evidence but not sent to the model. The agent executes the action through the surface, records whether it succeeded, and feeds the result back before asking for the next action. The one exception is read: the model reports the value it sees in the page text, and the loop records it. If the model names the element the value came from, that element is saved as the step's target, so replay can read it from the page later. The run ends when:
+- **Agent (`src/agent/`):** on each turn, it describes the page to the model in text, together with the goal, and gets back exactly one action: `click`, `type_text`, `navigate`, `read`, `select_option`, or `done`. The description lists the page address, its title, the elements that can be clicked or typed into, and the start of the page text. Screenshots are saved as evidence but not sent to the model. The agent stops when the model says done (the CLI then checks the page to confirm success), when it has used its 15 steps or failed 3 actions in a row (both first ask a person for help), when the operator stops it, or when the start page can't be reached.
 
-    1. the model reports the goal is `done`.
-    2. the step limit (15 by default) is reached. This escalates to a human; if they resume, the agent gets 3 more steps.
-    3. 3 actions fail in a row. This also escalates to a human.
-    4. The human aborts at an escalation, or the escalation budget (2 per run) is used up.
-    5. The start page can't be reached before the model is called at all.
-
-
-- **Replay (`src/replay/`):** is started with the same YAML config used for discovery `--config` and the caller's values `--inputs "amount=1000,down_payment=10,from_account_id=13344"`. It loads the latest saved version of the capability, or a pinned one with `--version`. Before anything touches the browser, it checks the inputs against the artifact: required names present, no unknown names, every `{placeholder}` filled, and numbers where numbers are declared. A risky capability then needs an operator's confirmation. It runs the steps in `step_num` order, filling each `{param}` from the inputs, through the same surface the agent used. After the last step, it checks the checkpoint, then the outcome rules, and returns `SUCCESS`, `BUSINESS_OUTCOME`, or `FAILURE` (see Section 3).
+- **Replay (`src/replay/`):** checks the caller's inputs, asks for approval if the capability is risky, runs the saved steps in order, and reports one of three results (Section 3).
 
 - **Recorder and store (`src/artifact/`):** turn a successful agent run into a Capability artifact (Section 2) and save it as a new version in /artifacts/.
   
@@ -25,30 +18,17 @@ Based on the assignment specification, the system has to have two distinct flows
   2. **Observation**: `perception.snapshot(session)` builds a PageState for the agent: the interactive elements (each with a locator and fallbacks), the visible text, and a screenshot.
   3. **Helpers** used by replay and escalation: `get_url`, `get_visible_text`, `wait`, `is_visible`, `screenshot`, `bring_to_front`, and `pop_dialogs`, which reports any JavaScript dialog that appeared and was dismissed.
 
-    ```python
-    @dataclass
-    class PageState:
-        url: str
-        title: str
-        interactive_elements: list[InteractiveElement]
-        visible_text_summary: str
-        screenshot_path: Optional[str] = None
-    ```
-
-- **Escalation (`src/escalation/`):** hands the live browser to a human operator when the agent is stuck, a replay step fails, or a risky capability needs confirmation, and records the operator's decision (see Section 5).
-
-- **Safety (`src/safety/`):** the allowlist that every action is checked against, and redaction of sensitive values in artifacts and logs (see Section 6).
+- **Escalation (`src/escalation/`):** pauses the run and asks a person when the system is stuck or needs approval (Section 5).
   
-- **CLI (`src/cli.py`):** is the orchestrator, where
-  1. `discover` runs the agent, checks the checkpoint, and records and saves the artifact.
-  2. `replay` validates the inputs before opening the browser and then runs the replay from the artifact.
-  Each run writes its evidence to its own folder under `/evidence/`.
+- **Safety (`src/safety/`):** the allowlist and the hiding of sensitive values (Section 6).
+  
+- **CLI (`src/cli.py`):** the `discover` and `replay` commands. Each run saves its evidence in its own folder in /evidence/.
 
 **Key decisions and trade-offs:**
-- **A fixed action set over free-text actions.** Every turn, the model must return one call from a closed set (`click`, `type_text`, `navigate`, `read`, `select_option`, `done`) rather than a free-form response. This makes actions reliably parseable and keeps the transcript close to the artifact schema's own shape, at the cost of flexibility like drag-and-drop, etc.
-- **A text observation over screenshots.** The model chooses from a list of named interactive elements, and each of those already carries a locator and fallbacks. So whatever the model clicks can be recorded as a replayable step without any image understanding at replay time. The cost is that the model can't use purely visual information, such as an unlabeled icon or a canvas.
-- **Surface as the one seam both Agent and Replay go through.** Neither component talks to Playwright or raw HTML directly — both act only through `Surface`'s methods and see only `PageState`/`ElementRef`. This is the seam that would let a future desktop or legacy-app surface (see Section 4) be swapped in by writing a new session class with the same methods and a matching `perception.py`, without touching the agent loop, artifact schema, or replay engine. The cost is that everything, every click and every read, is forced through this one interface, even where a more direct call would be simpler.
-- **A config file per capability.** Each capability starts from a short YAML file written by a person (`capabilities/login.yaml`, `capabilities/loan.yaml`): the goal, the start page, which values become inputs, how success is checked, and which answers count as normal results. The agent only works out the steps. This keeps the decisions that make replay trustworthy out of the LLM's hands, and a file is easier to review, change, and reuse than a long command with a paragraph-long goal. The cost is writing a config for each new capability. 
+- **A fixed set of actions.** Each turn, the model must pick one of six actions instead of replying in free text, so every action maps directly to a step that can be replayed. Cost: actions outside the set, such as drag-and-drop, aren't possible.
+- **The model reads text, not screenshots.** It picks from a list of named elements, and each one already carries saved ways to find it again. So anything the agent does can be replayed without AI. Cost: the model can't use purely visual cues, such as an unlabeled icon.
+- **Surface controls the browser** Only `src/surface/` talks to the browser. Supporting a desktop app would mean writing a new version of that layer, without changing the agent, the capability format, or replay. Cost: every action goes through this layer, even where a direct call would be simpler.
+- **A config file per capability.** A person writes a short file for each task, `capabilities/login.yaml`, and `capabilities/loan.yaml`: the goal, the start page, which values are inputs, how success is checked, and which answers are normal results. The agent only finds the steps. The decisions that make replay trustworthy stay with a person. Cost: a new config for every new capability.
 
 
 ## 2. Artifact schema
