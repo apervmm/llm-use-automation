@@ -10,8 +10,8 @@ Based on the assignment specification, the system has to have two distinct flows
 - **Agent (`src/agent/`):** takes a goal and a start URL. On each turn, it observes the page, sends the observation and the goal to the model, and asks for exactly one next action from a fixed set: `click`, `type_text`, `navigate`, `read`, `select_option`, or `done`. The observation is text: the URL, the page title, the interactive elements (role, name, and dropdown options), and the start of the visible page text. A screenshot of every step is saved as evidence but not sent to the model. The agent executes the action through the surface, records whether it succeeded, and feeds the result back before asking for the next action. The one exception is read: the model reports the value it sees in the page text, and the loop records it. If the model names the element the value came from, that element is saved as the step's target, so replay can read it from the page later. The run ends when:
 
     1. the model reports the goal is `done`.
-    2. the step limit (15 by default) is reached — extendable by 3 more steps if a human resumes from escalation
-    3. 3 consecutive failed actions occur — also escalates to a human
+    2. the step limit (15 by default) is reached. This escalates to a human; if they resume, the agent gets 3 more steps.
+    3. 3 actions fail in a row. This also escalates to a human.
     4. The human aborts at an escalation, or the escalation budget (2 per run) is used up.
     5. The start page can't be reached before the model is called at all.
 
