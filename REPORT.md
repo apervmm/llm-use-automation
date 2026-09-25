@@ -189,57 +189,69 @@ class Capability(BaseModel):
 ### Deterministic replay
 Replay is deterministic because nothing is decided at runtime. There are three points where a decision could happen, and each one is fixed in advance: 
 1. **Which actions to take.** Replay does not call the LLM. It runs `capability.steps` in `step_num` order with the recorded targets and values. The only thing that changes between runs is the `{param}` placeholders, which `_substitute()` fills from the caller's inputs. 
-2. **Whether the inputs are valid.** `_validate_inputs()` rejects missing required inputs, and `_substitute()` rejects unknown parameters, before any UI action. A bad input stops the run before it starts, instead of partway through. 
+2. **Whether the inputs are valid.** `input_errors()` checks the caller's inputs against the artifact before anything else: missing required inputs, unknown input names (e.g., a typo like `amout`), `{placeholders} `with no value, and values that aren't numbers where the artifact declares `number`. Any problem returns `FAILURE` at step 0, listing every problem, e.g., `Invalid inputs: missing required input(s): ['amount']; unknown input(s): ['amout']`. The CLI runs the same check before it opens the browser, so a bad input never reaches the login or the risky-confirmation prompt.
 3. **Whether the run succeeded.** This is decided by `checkpoint` and `outcome_rules` (text or URL checks), not by a model reading the page. 
 
 The same inputs always produce the same actions. The result can still differ, because the application's data can differ. For example, the same `request_loan` steps can be approved or denied depending on the account balance. This is why the result types below separate a business outcome from a failure.
 
-**Element Targeting** 
+### Element Targeting
 Fixed steps are only useful if each step finds the same element every time. A single locator can break when markup changes slightly, so each step stores a primary locator and fallbacks, all captured from the element used during discovery. The order depends on how stable the CSS selector is: 
 1. **Stable selector** (`#id` or `[name=...]`):  CSS first, then role + name, then visible text. 
 2. **Positional selector** (`nth-of-type` path): role + name first, then visible text, then the positional CSS.
 
 However, there's an issue with `Fallbacks` that could match the wrong element. So I added `_resolve()` to handle this by checking each candidate in the following order:
-1. Waiting to 3s for the element to be visible. 
+1. Wait up to 3s for the element to be visible. 
 2. For links and buttons found by a non-stable locator, check that the element's name matches `expected_name`. If not, try the next candidate. 
 3. If all candidates fail, raise an error listing each strategy and why it failed.
-
 This way replay either acts on the right element or stops with a clear error. 
 
 
 ### Result types
 Since the application's data can change the result, replay needs to tell the caller what kind of result it got. Every run ends in one of three states: 
-1. **`SUCCESS`**: the checkpoint was met and outputs are returned. Example: loan approved. 
+1. **`SUCCESS`**: the checkpoint was met, and outputs are returned. Example: loan approved. 
 2. **`BUSINESS_OUTCOME`**: the app gave a known non-success answer. This is a valid result, not an error. Examples: `invalid_credentials`, `insufficient_funds`. 
-3. **`FAILURE`**: something unexpected happened and replay stopped. Examples: element not found, page unreachable, or any other thing that causes the fail.
+3. **`FAILURE`**: something unexpected happened and replay stopped. Examples: element not found, page unreachable, or policy violation
 
 The `executor.py` picks the state by checking in this order, both when a step fails and after the last step:
-1. Checkpoint met → `SUCCESS`. 
-2. An `outcome_rule` matches → `BUSINESS_OUTCOME`. Rules are checked in order and the first match wins, so specific messages are listed first. 
-3. Neither → escalate to an operator (Section 5). If still unresolved → `FAILURE`.
+executor.py picks the state as follows.
+
+**When a step fails:**
+
+1. A policy violation -> `FAILURE` immediately, with no escalation, so an operator can't retry a blocked action.
+2. An `outcome_rule` matches the page -> `BUSINESS_OUTCOME`. Rules are checked in order and the first match wins, so specific messages are listed first.
+3. Neither -> escalate to an operator (see Section 5). On `resume`, the step is retried once; if it still fails -> `FAILURE`.
+
+**After the last step:**
+
+1. Checkpoint met (polled for up to 5s) > `SUCCESS`.
+2. An `outcome_rule` matches -> `BUSINESS_OUTCOME`.
+3. Neither -> `escalate`; on `resume,` the checkpoint is checked again, otherwise -> `FAILURE`.
 
 Checking outcome rules before declaring failure is what keeps "loan denied" from being reported as a crash. In `/evidence/`, replaying `request_loan` with `amount=100000, down_payment=1` returns `business_outcome` as `insufficient_funds`.
 
 A `FAILURE` includes `failed_step`, `expected`, `observed`, and `error`, plus a screenshot if an escalation was raised. This is enough to see where the run stopped and why.
 
+
 ### Runtime conditions
 The result types above only work if each runtime problem is sent to the right one. Each condition is handled as follows: 
-1. **Missing or unknown input:** rejected before any UI action. The caller gets an error.
+1. **Missing or Invalid input:** rejected before any UI action -> `FAILURE` at step 0
 2. **Slow render or redirect:** each locator waits up to 3s, and the checkpoint is polled every 250ms for up to 5s. Replay continues. 
 3. **Primary locator not found:** the next fallback is tried, with the name check. Replay continues. 
-4. **Known app message:** matched by `outcome_rules` → `BUSINESS_OUTCOME`. 
-5. **Action outside the allowlist:** blocked before acting → `FAILURE`. 
-6. **Entry page unreachable:** 15s timeout, checked before step 1 → `FAILURE` at step 0. 
-7. **Step fails and no rule matches:** escalated. The operator fixes it in the live session, then the step is retried once. Otherwise → `FAILURE`. 
-8. **Risky capability not confirmed:** the operator must confirm before step 1. If aborted → `FAILURE`. 
+4. **Known app message:** matched by `outcome_rules` -> `BUSINESS_OUTCOME`. 
+5. **Action outside the allowlist:** every action checks the current URL against the allowlist first, and a top-level navigation to a route outside it, in the main tab or a popup, is cancelled before the page loads, so the browser stays where it was (see Limits for redirects).-> `FAILURE`, with no escalation, e.g. `Policy violation at step 3: Route '/parabank/overview.htm' is not in the allowed routes`.
+6. **Entry page unreachable:** a 15s timeout, checked before step 1 -> `FAILURE` at step 0. 
+7. **Unexpected JavaScript dialog (`alert`, `confirm`, `prompt`):** dismissed, never accepted, and the step that caused it fails with the dialog's text, e.g. `Unexpected dialog(s) dismissed: ['confirm: Really log in?']`. It then goes through outcome rules and escalation like any failed step.
+8. **Step fails, and no rule matches:** escalated. The operator fixes it in the live session, then the step is retried once, with the same dialog and policy checks as the first attempt; dialogs raised while the operator was in control are discarded first. If the retry fails -> `FAILURE`.
+9. **Risky capability not confirmed:** after the inputs are validated and before step 1, the operator must confirm. If aborted -> `FAILURE`. 
 
 The first three are recovered automatically. The rest either return a known result or stop with a clear error.
 
 ### Limits 
 Some conditions are not handled automatically yet. They still don't pass silently: each one causes a failed step and goes to an operator. 
-1. **Not automated:** dismissing unexpected dialogs, retrying failed page loads, detecting session timeouts. The fix is to declare known interstitials in the artifact with a recovery action, the same way `outcome_rules` declare known results. 
-2. **UI drift:** fallbacks and name checks handle small changes, such as a new id or a moved button. Larger changes fail at a specific step instead of acting on the wrong element. 
-3. **Plain-text reads:** reading a value next to a label can return the label instead (e.g. `"loan_status": "Status:"`). See Cuts.
+1. **Not automated:** dismissing unexpected dialogs, retrying failed page loads, detecting session timeouts. The fix is to declare known interstitials in the artifact with a recovery action, the same way `outcome_rules` declare known results.
+2. **Redirects:** the navigation guard cancels navigations the browser starts itself, such as clicking a link or opening a popup. A server redirect happens inside the response, so it is only caught after the page has loaded; replay still stops with FAILURE. The login is an example: the form posts to `login.htm`, which redirects to `overview.htm`.
+3. **UI drift:** fallbacks and name checks handle small changes, such as a new id or a moved button. Larger changes fail at a specific step instead of acting on the wrong element. The name check is a "contains" match, so a button renamed from `Log In `to `Log In Now` would still pass.
+4. **Plain-text reads:** reading a value next to a label can return the label instead (e.g. `"loan_status": "Status:"`). See Cuts.
 
 
 ## 4. Heterogeneity & multi-tenant
@@ -261,40 +273,25 @@ surface is driven. The current design splits the system into two parts:
    step into a real action. It handles *how*: finding elements, clicking,
    typing, reading text, taking screenshots.
 
-Agent and Replay call the surface through five actions (`click`,
-`type_text`, `select_option`, `read_text`, `goto`) plus `snapshot()`.
-Each returns an `ActionResult`. A new surface would only need to
-implement these methods. The artifact schema, replay order, and result
-types would stay the same.
+Agent, Replay, and escalation reach the application only through the surface; nothing outside `src/surface/` calls Playwright. A new surface would implement the same methods as `BrowserSession`:
+1. **Actions** returning an `ActionResult`: `click`, `type_text`, `select_option`, `read_text`, `goto`.
+2. **Observation**: `snapshot()` returning a `PageState`.
+3. **Helpers**: `get_url`, `get_visible_text`, `wait`, `is_visible`, `screenshot`, `bring_to_front`, `pop_dialogs`.
 
-The one surface-specific part of the artifact is the locator.
-`ElementRef` stores the kind of locator separately from its value, so
-each surface can use its own kinds without changing the schema.
+The artifact schema, replay order, and result types would stay the same. There is no formal interface class yet; BrowserSession is the de facto definition (see Limits).
+
+The one surface-specific part of the artifact is the locator. `ElementRef` stores the kind of locator separately from its value, so each surface can use its own kinds without changing the schema.
 
 ### Legacy web apps
-Legacy web apps use the same surface, but their markup is harder to
-target. The current design handles some of these cases but not all:
-
-1. **No ids or test IDs:** already handled. The CSS locator falls back
-   from id to `name` attribute to a positional path, with `role_name`
-   and `text` as fallbacks. ParaBank's Log In button has no id or name,
-   so it uses a positional path, which is more brittle to layout changes.
-2. **Framesets and iframes:** not handled yet. `_to_playwright_locator()`
-   searches only the main page. The fix is to add a frame path to
-   `ElementRef`, so the locator is resolved inside the right frame.
-3. **Elements with no accessible name:** some legacy controls have no
-   label, and `perception.py` already falls back to nearby text. A
-   screenshot + coordinates strategy could be added as one more
-   `LocatorStrategy`.
+Legacy web apps use the same surface, but their markup is harder to target. The current design handles some of these cases but not all:
+1. **No ids or test IDs:** already handled. The CSS locator falls back from id to `name` attribute to a positional path, with `role_name` and `text` as fallbacks. ParaBank's Log In button has no id or name, so it uses a positional path, which is more brittle to layout changes.
+2. **Framesets and iframes:** not handled yet. `_to_playwright_locator()` searches only the main page. The fix is to add a frame path to `ElementRef`, so the locator is resolved inside the right frame.
+3. **Elements with no accessible name:** some legacy controls have no label. The element extraction script (`surface/scripts/extract_elements.js`, `nearbyText()`) already falls back to text next to the control, such as the table-cell label `Loan Amount: $`. A screenshot + coordinates strategy could be added as one more `LocatorStrategy`.
 
 ### Desktop apps
 A desktop app needs a new surface class, not a new artifact:
-
-1. **`DesktopSession`** implements the same five actions using an OS
-   accessibility API (e.g. UI Automation on Windows).
-2. **`snapshot()`** reads the accessibility tree instead of the DOM and
-   returns the same `PageState`: interactive elements, visible text,
-   screenshot.
+1. **`DesktopSession`** implements the same five actions using an OS accessibility API (e.g. UI Automation on Windows), with `pop_dialogs` reporting unexpected modal windows.
+2. **`snapshot()`** reads the accessibility tree instead of the DOM and returns the same `PageState`: interactive elements, visible text, screenshot.
 3. **Locators** use `role_name` (an accessible role and name, e.g.
    `button` / "Log In"). It comes from the accessibility tree, which
    exists on both web pages and desktop apps (Windows UI Automation,
@@ -302,14 +299,11 @@ A desktop app needs a new surface class, not a new artifact:
    chain on the web: it is the strategy that carries over to desktop,
    where it becomes the primary locator. CSS and XPath are not generated
    for desktop steps.
-4. **`checkpoint` and `outcome_rules`** use `text_visible` as they do
-   now. `url_contains` would need a desktop equivalent, such as the
-   window title.
+4. **`checkpoint` and `outcome_rules`** use `text_visible` as they do now. `url_contains` would need a desktop equivalent, such as the window title.
+5. **Policy**: the allowlist is URL-based (domains and routes). A desktop surface needs its own policy keys, such as permitted applications and windows.
 
-Screenshot + coordinates is possible as a final fallback for controls
-with no accessibility data, but it would be the least stable option. A
-step that can only be found by coordinates should escalate to a human
-rather than click blindly.
+Screenshot + coordinates is possible as a final fallback for controls with no accessibility data, but it would be the least stable option. A step that can only be found by coordinates should escalate to a human rather than click blindly.
+
 
 ### Multi-tenant reuse
 Many tenants run the same vendor product with different branding, URLs,
@@ -317,13 +311,8 @@ and settings. Recording the same flow for each tenant would repeat most
 of the work. Instead, the current artifact becomes a shared base, and
 each tenant can add a small override file:
 
-1. **Base artifact:** recorded once per vendor product, e.g.
-   `<vendorX>.<capability>.v<N>`. It holds the steps, locators, inputs,
-   outputs, and rules that are the same for every tenant.
-2. **Tenant override:** a small file per tenant that changes only what
-   differs, such as the base URL, a relabeled button name, or a
-   different error message in `outcome_rules`. An override cannot add or
-   remove steps; a tenant with a different flow gets its own artifact.
+1. **Base artifact:** recorded once per vendor product, e.g. `<vendorX>.<capability>.v<N>`. It holds the steps, locators, inputs, outputs, and rules that are the same for every tenant. This is the naming the store already uses: `target_app` is the id's prefix, applied in one place by `store.qualify()`.
+2. **Tenant override:** a small file per tenant that changes only what differs, such as the base URL, a relabeled button name, or a different error message in `outcome_rules`. An override cannot add or remove steps; a tenant with a different flow gets its own artifact.
 
 At replay time, the override is merged onto the base artifact. A tenant
 with no differences needs no override. A base artifact is not trusted on
@@ -359,21 +348,17 @@ previous version.
 ### Limits
 This section is mostly design. What is built and what is not:
 
-1. **Built:** the surface/flow split, `ElementRef` with a locator kind
-   and fallback chain (CSS primary, `role_name` and `text` fallbacks),
-   the shared `ActionResult` and `PageState` types, and base-URL
-   switching through an environment variable.
-2. **Not built:** a surface interface class, desktop or iframe support,
-   tenant overrides, test replays for new tenants, and drift logging.
-3. **Known leak:** `_check_outcomes()` and the `element_visible`
-   checkpoint call `session.page` directly. These are Playwright calls
-   outside the surface and would need to move into `BrowserSession`
-   before a second surface could be added.
+1. **Built:** the surface/flow split, `ElementRef` with a locator kind and fallback chain, the shared `ActionResult` and `PageState` types, and base-URL switching through an environment variable.
+2. **Not built:** a surface interface class, desktop or iframe support, tenant overrides, test replays for new tenants, and drift logging.
+3. **Still web-specific**: the `css` and `xpath` locator strategies, `url_contains` checkpoints and outcome rules, and the URL-based allowlist and navigation guard. A desktop surface needs an equivalent for each (see Desktop apps).
 
 
 ## 5. Escalation & handoff
-*how you detect "stuck," how a human takes control of the live session, and how control is handed back.*
+All escalations use one mechanism: automation pauses, a human takes over the same live browser session the automation was using, and then hands control back with a decision.
 
+### Detecting when to escalate
+1. `dicovery_stuck`: the step limit is reached, 3 actions fail in a row, or the model returns no action.
+2. `replay_failure`: the step fails and no out 
 
 
 ## 6. Safety
