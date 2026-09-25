@@ -3,18 +3,18 @@
 1. `python3 -m venv .venv && source .venv/bin/activate`
 2. `pip install -r requirements.txt && playwright install chromium`
 3. Copy `.env.example` to `.env`
-```bash
-   cp .env.example .env
-```
+   ```bash
+      cp .env.example .env
+   ```
 4. Then your `.env` file should look like this:
-```
-ANTHROPIC_API_KEY=
-#PARABANK_BASE_URL=https://parabank.parasoft.com/parabank
-PARABANK_BASE_URL=http://localhost:8080
-PARABANK_USERNAME=john
-PARABANK_PASSWORD=demo
-```
-Add `ANTHROPIC_API_KEY` with your own.
+   ```
+   ANTHROPIC_API_KEY=
+   #PARABANK_BASE_URL=https://parabank.parasoft.com/parabank
+   PARABANK_BASE_URL=http://localhost:8080
+   PARABANK_USERNAME=john
+   PARABANK_PASSWORD=demo
+   ```
+   Add `ANTHROPIC_API_KEY` with your own.
 
 ## Running ParaBank locally with Docker (recommended)
 The public ParaBank `parabank.parasoft.com` is a shared sandbox that resets periodically and can return server-side errors unrelated to this project. For reliable, reproducible runs, I would recommend using a local Docker instance
