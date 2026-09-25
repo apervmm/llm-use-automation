@@ -131,7 +131,7 @@ Each run writes to its own folder under `/evidence/`:
 
 ## Tests
 
-There are 50 unit tests for inputs, outcomes, policy, recorder, redaction, schema and store.
+There are 51 unit tests for inputs, outcomes, policy, recorder, redaction, schema and store.
 ```
 pytest -v
 ```
