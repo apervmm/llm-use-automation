@@ -14,7 +14,7 @@
    PARABANK_USERNAME=john
    PARABANK_PASSWORD=demo
    ```
-   Add `ANTHROPIC_API_KEY` with your own.
+   Add your own anthropic key in `ANTHROPIC_API_KEY` 
 
 ## Running ParaBank locally with Docker (recommended)
 The public ParaBank `parabank.parasoft.com` is a shared sandbox that resets periodically and can return server-side errors unrelated to this project. For reliable, reproducible runs, I would recommend using a local Docker instance
