@@ -1,7 +1,7 @@
 {
   "run_type": "replay",
-  "run_id": "a530666e9653",
-  "timestamp": "20260925T232458Z",
+  "run_id": "ed629269a446",
+  "timestamp": "20260925T235050Z",
   "inputs": {
     "amount": "1000",
     "down_payment": "10",
@@ -21,9 +21,9 @@
       "capability_or_goal": "parabank.request_loan",
       "current_step": null,
       "current_url": "http://localhost:8080/parabank/overview.htm",
-      "detail": "This will submit a NEW loan application with: amount=1000, down_payment=10, from_account_id=***44. Current state of account ***44 shown on this page: \"***44\t$1201.10\t$1201.10\"",
-      "screenshot_path": "evidence/replay_request_loan_20260925T232454Z_a530666e9653/escalation_58b64c2a13674abc888bc3cf3fc29e79.png",
-      "timestamp": "2026-09-25T23:24:56.374528+00:00",
+      "detail": "This will submit a NEW loan application with: amount=1000, down_payment=10, from_account_id=***44. Current state of account ***44 shown on this page: \"***44\t$1191.10\t$1191.10\"",
+      "screenshot_path": "evidence/replay_request_loan_20260925T235042Z_ed629269a446/escalation_86c1b1f31f774d918bde3e60b244b6a3.png",
+      "timestamp": "2026-09-25T23:50:43.762701+00:00",
       "operator_decision": "abort",
       "human_actions": []
     }

@@ -5,6 +5,9 @@ from observability.logger import log_replay
 from replay.outcomes import ReplayResult, ReplayStatus
 from safety.redaction import redact_any
 
+from agent.loop import AgentRunResult, TranscriptStep
+from observability.logger import log_discovery
+
 
 def test_password_fields_are_hidden_at_any_depth():
     data = {"inputs": {"username": "john", "password": "demo"}}
@@ -59,3 +62,25 @@ def test_replay_log_hides_secrets_and_masks_accounts_in_every_field(tmp_path):
     assert "wrong" not in text
     assert "13344" not in text
     assert "***44" in text
+
+
+def test_discovery_log_masks_the_runs_own_accounts_only(tmp_path):
+    step = TranscriptStep(
+        step_num=3, page_url="http://localhost:8080/parabank/requestloan.htm",
+        tool_name="select_option",
+        tool_input={"element_name": "From account #:", "option_value": "12456"},
+        success=True,
+        detail="Options: 12345, 12456. Your new account number: 13899",
+    )
+    result = AgentRunResult(
+        goal="Request a loan", 
+        success=True, 
+        stop_reason="goal_met",
+        transcript=[step], 
+        outputs={"new_account_id": "13899"}
+    )
+    path = log_discovery(result, str(tmp_path), run_id="test")
+    text = path.read_text()
+    assert "12456" not in text and "***56" in text      
+    assert "13899" not in text and "***99" in text    
+    assert "12345" in text                  
