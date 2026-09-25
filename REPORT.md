@@ -380,20 +380,22 @@ class EscalationRequest:
 The operator sees the reason, task, step, URL, and detail in the terminal. For a failed step, the detail is the step's own error. For a risky confirmation, it lists the parameters about to be submitted and, when the page shows it, the current state of the account involved.
 
 
-### Taking control of the live session
+### Taking control
 Discovery and replay always run in a visible browser window. When an escalation is raised:
 1. The browser window is brought to the front. It is the same session, with the same login, cookies, and page, so the operator continues exactly where automation stopped.
 2. `HandoffState.automation_in_control` is set to False, recording that the human is in control.
 3. Automation blocks on the operator prompt. Because execution is synchronous (Section 1), no automated action can happen while the human is working in the browser.
 
 ### Handing control back
-The operator types `resume` or `abort`, and can add a note describing what they did. On `resume`, control returns to automation (`automation_in_control = True`), and what happens next depends on the reason:
-1. `discovery_stuck`: The agent observes the page again, so it sees whatever the human changed; its failure count is reset, and if the step limit was hit, it gets 3 more steps. At most 2 escalations per run.
-2. `replay_failure` (step): The failed step is retried once, with the same dialog and policy checks as the first attempt. Dialogs raised while the operator was in control are discarded first. If the retry fails -> `FAILURE`.
-3. `replay_failure` (checkpoint): The checkpoint is checked again (polled for up to 5s). If it still isn't met -> `FAILURE`.
-4. `risky_confirmation`: The run is confirmed, and replay starts at step 1.
+The operator types `resume` or `abort`, and can add a note describing what they did. 
 
-On `abort`, the run ends: discovery stops with `aborted_by_operator` and nothing is recorded; replay returns `FAILURE` with the reason.
+- On `resume`, control returns to automation (`automation_in_control = True`), and what happens next depends on the reason:
+    1. `discovery_stuck`: The agent observes the page again, so it sees whatever the human changed; its failure count is reset, and if the step limit was hit, it gets 3 more steps. At most 2 escalations per run.
+    2. `replay_failure` (step): The failed step is retried once, with the same dialog and policy checks as the first attempt. Dialogs raised while the operator was in control are discarded first. If the retry fails -> `FAILURE`.
+    3. `replay_failure` (checkpoint): The checkpoint is checked again (polled for up to 5s). If it still isn't met -> `FAILURE`.
+    4. `risky_confirmation`: The run is confirmed, and replay starts at step 1.
+
+- On `abort`, the run ends: discovery stops with `aborted_by_operator` and nothing is recorded; replay returns `FAILURE` with the reason.
 
 
 ### What's recorded
@@ -411,55 +413,23 @@ Every escalation is appended to the run's result.json with the request, the oper
       "human_actions": []
     }
 ```
-### Limits and the full design
-1. **Terminal instead of an operator console** For the simplicity of the system, there's no live console with full operations, and convenience is implemented. The interaction is mocked through the terminal when escalation fires.
-2. **Human actions are a free-text note, not a record.** The note is whatever the operator types. The full version records the operator's clicks and typing during the handoff window, with the same redaction as automated steps, and attaches them to the escalation record.
-3. No "I did it myself" option. resume always retries the failed step. If the operator already completed that step manually, the retry repeats it, and on a submit button that could submit twice. The next step is a third decision, skip, meaning "the step is done, continue with the next one", and requiring confirmation before retrying a step of a risky capability.
-4. The control flag is informational. The pause is enforced by the blocking prompt, not by the surface checking automation_in_control. With concurrent runs or a non-blocking console, the surface should refuse automated actions while the human is in control.
-5. Dialogs are dismissed during the handoff too. The dialog handler doesn't know a human is in control, so an operator can't answer a confirm() themselves.
-6. No timeout. A run waits for the operator indefinitely.
+### Limits
+1. **The operator can't complete steps in the browser.** They can type into fields and choose from dropdowns, but links and buttons don't load anything while the prompt is waiting: each request is held until the operator answers. The operator's only real input is the decision to continue (`resume`) or stop (`abort`).
+2. **Held requests go through after the answer.** If the operator clicked "Apply Now" during the prompt, the loan can be submitted after the run has already reported its result.
+3. **Only the operator's note is recorded.** The optional note is saved with the escalation in `result.json` as an audit record, but the system doesn't act on it. The operator's actual clicks and typing aren't recorded.
+4. **The operator must be at the same computer.** The prompt appears in the terminal that started the run, and the browser opens on that screen. A production version needs a web console for operators; the assignment allows this to be mocked.
+5. **No time limit.** The run waits for an answer indefinitely.
 
 ## 6. Safety
 *your guardrail model and its limits.*
 
 
-
-## 7. Cuts
-*what you deliberately left out, and what you'd build next
-
-1. **Output extraction falls back to a name-pattern heuristic instead of
-an explicit rule.** In `_extract_outputs()`, if an output isn't
-`derived_from_outcome` and wasn't captured by a live `read` step, the
-system guesses its value by checking whether the field's name contains
-"succeed" or "success" (defaulting to `"true"` if so, `None`
-otherwise). This works for the two capabilities in this project only
-because their output names happen to match that pattern
-(`login_succeeded`). It's fragile by construction: renaming that field
-to `logged_in`, or adding an output like `account_verified`, would
-silently return `None` instead of failing loudly — a naming
-coincidence is doing the job a real declaration should. The correct
-fix is to make the source explicit in the capability config rather
-than inferred from a string match, e.g.:
-
-    outputs:
-      login_succeeded: { from: status }   # true on SUCCESS, false otherwise
-      message: { from_read: message }     # pulled from a read step's value
-
-This was cut because both current capabilities work under the
-existing heuristic and building a small declarative mini-language for
-output sourcing wasn't worth the time against two capabilities — but
-it's the first thing I'd fix before adding a third.*
-
-
-2. **`derived_from_outcome` is a workaround I'd remove, but only after
-fixing plain-text reads.** It duplicates information already on
-`ReplayResult` (`status`/`outcome_name`), so on its own it looks like
-dead weight. But testing its removal exposed why it's still there:
-`loan_status` falls back to a live `read` step, and reading a value
-that sits next to a label in plain page text (not inside a clickable
-element) isn't generally solved — a `following-sibling`-style fix
-works for this specific page's layout, but silently returns the wrong
-text (the label, not the value) on markup it wasn't built for. The
-right sequence is: make plain-text reads reliable first, confirm
-`loan_status` reads correctly across cases, then remove the redundant
-field — not the other way around.
+7. Cuts
+Automated tests. Behavior was checked with one-off scripts against the local ParaBank. They should become a test suite.
+Some outputs are guessed from their names. If no step reads an output from the page, an output named like login_succeeded is set to "true" or "false" from the run's result, and any other output comes back empty. Each output should state where its value comes from.
+loan_status copies the run's result. Reading the status from the page sometimes returns the label ("Status:") instead of the value, so it's taken from the result instead. Once page reading is reliable, it should come from the page.
+Loan wording in shared code. The approval message ("This will submit a NEW loan application…") is written into code that every capability uses. Each capability should define its own.
+An operator web page, recording the operator's actions, and the done answer (Section 5).
+Handling known interruptions automatically, such as confirmation boxes or expired sessions. Today they fail the step and go to the operator.
+Other apps and multiple clients (Section 4): designed, not built.
+Safer discovery: approval before risky submissions, and hiding sensitive data from the AI model and from screenshots (Section 6).
