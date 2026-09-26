@@ -31,6 +31,7 @@ def matches_any(value: str, patterns: list[str]) -> bool:
     return any(fnmatch.fnmatch(value, pattern) for pattern in patterns)
 
 
+
 #  ------------ Redaction ----------------------
 REDACTED = "[REDACTED]"
 SECRET_KEYS = frozenset({"password", "pin", "ssn"})

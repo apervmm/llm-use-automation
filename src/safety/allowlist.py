@@ -17,7 +17,6 @@ class PolicyViolation(Exception):
 
 class Allowlist:
     def __init__(self, config_path: Path = _CONFIG_PATH):
-        
         config = load_policy_config(config_path or _CONFIG_PATH)
 
         base_url = os.environ.get("PARABANK_BASE_URL")
