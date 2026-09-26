@@ -138,7 +138,6 @@ def failed(action: str, label: str, error) -> ActionResult:
 
 
 def refused(action: str, label: str, error) -> ActionResult:
-    """A failure caused by the allowlist."""
     return ActionResult(False, action, label, error=str(error), policy_violation=True)
 
 
