@@ -3,6 +3,8 @@ import yaml
 from pathlib import Path
 from urllib.parse import urlparse
 
+from .helpers import load_policy_config, matches_any, resolve_allowed_domains, split_url
+
 import os
 
 
@@ -15,8 +17,8 @@ class PolicyViolation(Exception):
 
 class Allowlist:
     def __init__(self, config_path: Path = _CONFIG_PATH):
-        path = config_path or _CONFIG_PATH
-        config = yaml.safe_load(path.read_text())
+        
+        config = load_policy_config(config_path or _CONFIG_PATH)
 
         base_url = os.environ.get("PARABANK_BASE_URL")
         if base_url:
