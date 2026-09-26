@@ -1,12 +1,11 @@
-from agent.loop import AgentRunResult, TranscriptStep
+from agent.loop import AgentRunResult
+from safety.allowlist import Allowlist
 from .schema import (
     Capability, 
     Checkpoint, 
     RiskLevel, 
 )
 from .helpers import build_inputs, build_outputs, build_steps, template, unmatched_params
-from safety.allowlist import Allowlist
-from safety.redaction import redact
 from .store import qualify
 
 
