@@ -1,11 +1,5 @@
-import fnmatch
-import yaml
 from pathlib import Path
-from urllib.parse import urlparse
-
 from .helpers import load_policy_config, matches_any, resolve_allowed_domains, split_url
-
-import os
 
 
 _CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "allowlist.yaml"
@@ -18,14 +12,7 @@ class PolicyViolation(Exception):
 class Allowlist:
     def __init__(self, config_path: Path = _CONFIG_PATH):
         config = load_policy_config(config_path or _CONFIG_PATH)
-
-        base_url = os.environ.get("PARABANK_BASE_URL")
-        if base_url:
-            self.allowed_domains = [urlparse(base_url).netloc]
-        else:
-            self.allowed_domains = config.get("allowed_domains", [])
-
-        # self.allowed_domains = config.get("allowed_domains", [])s
+        self.allowed_domains = resolve_allowed_domains(config)
         self.allowed_routes = config.get("allowed_routes", [])
         self.allowed_actions = set(config.get("allowed_actions", []))
         self.blocked_actions = set(config.get("blocked_actions", []))
@@ -39,20 +26,17 @@ class Allowlist:
         if action not in self.allowed_actions:
             raise PolicyViolation(f"Action '{action}' is not in the allowed action list.")
         if url:
-            self._check_url(url)
+            self.check_url(url)
 
 
-    def _check_url(self, url: str) -> None:
-        parsed = urlparse(url)
-        domain = parsed.netloc
+    def check_url(self, url: str) -> None:
+        """Raises PolicyViolation if the URL's domain or route is outside the allowlist"""
+        domain, path = split_url(url)
         if domain and domain not in self.allowed_domains:
             raise PolicyViolation(f"Domain '{domain}' is not in the allowlist.")
-        path = parsed.path or "/"
-        if self.allowed_routes and not any(
-            fnmatch.fnmatch(path, pattern) for pattern in self.allowed_routes
-        ):
+        if self.allowed_routes and not matches_any(path, self.allowed_routes):
             raise PolicyViolation(f"Route '{path}' is not in the allowed routes.")
 
 
     def is_risky(self, capability_id: str) -> bool:
-        return any(fnmatch.fnmatch(capability_id, pattern) for pattern in self.risky_patterns)
+        return matches_any(capability_id, self.risky_patterns)

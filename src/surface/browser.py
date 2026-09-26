@@ -77,7 +77,7 @@ class BrowserSession:
                 is_top_level = True
             if is_top_level:
                 try:
-                    self.allowlist._check_url(request.url)
+                    self.allowlist.check_url(request.url)
                 except PolicyViolation as e:
                     self._blocked_nav = str(e)
                     return route.fulfill(status=204, body="")
@@ -91,13 +91,13 @@ class BrowserSession:
     
 
     def _on_dialog(self, dialog):
-        """Record any JS dialog and dismiss it (never auto-accept)."""
+        """Records any JS dialog and dismiss it"""
         self._dialogs.append(f"{dialog.type}: {dialog.message}")
         dialog.dismiss()
 
 
     def pop_dialogs(self) -> list[str]:
-        """Return dialogs seen since the last call, and clear the list."""
+        """Returns dialogs seen since the last call, and clear the lists"""
         seen, self._dialogs = self._dialogs, []
         return seen
 
@@ -157,7 +157,7 @@ class BrowserSession:
         try:
             self.allowlist.check_action("navigate", url=url)
             self.page.goto(url, wait_until="domcontentloaded", timeout=15000)
-            self.allowlist._check_url(self.page.url)
+            self.allowlist.check_url(self.page.url)
             return ActionResult(True, "navigate",  url, duration_ms=int((time.time() - start) * 1000))
         except PolicyViolation as e:
             return ActionResult(False, "navigate", url, error=str(e), policy_violation=True)
@@ -192,7 +192,7 @@ class BrowserSession:
             self._resolve(ref).click(timeout=5000)
             self.page.wait_for_timeout(250) 
             self._raise_if_blocked()
-            self.allowlist._check_url(self.page.url)
+            self.allowlist.check_url(self.page.url)
             return ActionResult(True, "click", description or ref.value, duration_ms=int((time.time() - start) * 1000))
         except PolicyViolation as e:
             return ActionResult(False, "click", label, error=str(e), policy_violation=True)
@@ -223,7 +223,7 @@ class BrowserSession:
         try:
             # loc.locator(f'option[value="{value}"]').wait_for(state="attached", timeout=5000)
             loc.select_option(value=value, timeout=5000)
-            self.allowlist._check_url(self.page.url)
+            self.allowlist.check_url(self.page.url)
             return ActionResult(
                 True, 
                 "select_option", 
