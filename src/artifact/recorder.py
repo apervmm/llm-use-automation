@@ -9,6 +9,7 @@ from .schema import (
     RiskLevel, 
     ParamType
 )
+from .helpers import build_inputs, build_outputs, build_steps, template, unmatched_params
 from safety.allowlist import Allowlist
 from safety.redaction import redact
 from .store import qualify
@@ -31,44 +32,24 @@ def record(
         raise ValueError("Cannot record a capability from a failed run.")
 
     allowlist = allowlist or Allowlist()
-    steps = _build_steps(run_result.transcript, param_map)
-
-    unmatched = [name for name in param_map.values() if not any(s.value and f"{{{name}}}" in s.value for s in steps)]
-    if unmatched: 
-        raise ValueError(
-            f"Param(s) {unmatched} never matched a typed/selected value - check the env vars are set and the goal uses the same literals.")
-    description = _template(description or f"Recorded capability for goal: {run_result.goal}", param_map)
-
-    inputs = [
-        InputParam(
-            name=name, 
-            type=_infer_type(literal),
-            example="[REDACTED]" if name.lower() in ("password", "pin", "ssn") else literal
-        )
-        for literal, name in param_map.items()
-    ]
-
     outcome_derived_outputs = outcome_derived_outputs or []
 
-    outputs = [
-        OutputField(
-            name=key,
-            source_label=key,
-            derived_from_outcome=(key in outcome_derived_outputs),
+    steps = _build_steps(run_result.transcript, param_map)
+    if unmatched := unmatched_params(steps, param_map):
+        raise ValueError(
+            f"Param(s) {unmatched} never matched a typed/selected value - check the env vars are set and the goal uses the same literals"
         )
-        for key in output_keys
-        if key in run_result.outputs or key in outcome_derived_outputs
-    ]
+    
 
     full_id = qualify(capability_id)
     risk_level = RiskLevel.RISKY if allowlist.is_risky(full_id) else RiskLevel.SAFE
 
     return Capability(
         capability_id=full_id,
-        description=description or f"Recorded capability for goal: {run_result.goal}",
+        description=template(description or f"Recorded capability for goal: {run_result.goal}", param_map),
         entry_url=entry_url,
-        inputs=inputs,
-        outputs=outputs,
+        inputs=build_inputs(param_map),
+        outputs=build_outputs(output_keys, run_result.outputs, outcome_derived_outputs),
         steps=steps,
         checkpoint=checkpoint,
         risk_level=risk_level,

@@ -15,8 +15,6 @@ from .helpers import (
 )
 
 
-
-
 class BrowserSession:
     def __init__(self, headless: bool = False, allowlist: Allowlist | None = None):
         self._pw = sync_playwright().start()

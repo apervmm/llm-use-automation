@@ -1,5 +1,4 @@
-import re
-from .helpers import PII_PATTERNS, field_replacement, replace_known_values
+from .helpers import PII_PATTERNS, SECRET_KEYS, field_replacement, replace_known_values
 
 
 def redact_any(obj, sensitive_values: set[str] | None = None,  masked_values: set[str] | None = None):
@@ -33,3 +32,8 @@ def redact(text: str) -> str:
     for pattern, replacement in PII_PATTERNS:
         text = pattern.sub(replacement, text)
     return text
+
+
+def is_secret_name(name: str) -> bool:
+    """True for field or param names whose values must never be stored"""
+    return name.lower() in SECRET_KEYS
