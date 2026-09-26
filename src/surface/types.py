@@ -51,27 +51,14 @@ class PageState:
         for el in self.interactive_elements:
             if name_lower in el.accessible_name.strip().lower() and role_ok(el):
                 return el.ref
-
         return None
-    
-        # name_lower = name.strip().lower()
-        # for el in self.interactive_elements:
-        #     if el.accessible_name.strip().lower() == name_lower:
-        #         if role is None or el.role == role or el.element_type == role:
-        #             return el.ref
-                
-        # for el in self.interactive_elements:
-        #     if name_lower in el.accessible_name.strip().lower():
-        #         return el.ref
-            
-        # return None
 
 
 @dataclass
 class ActionResult:
     success: bool
-    action: str     # click | type |navigate | read
-    target_description: str         # for logs
+    action: str 
+    target_description: str       
     error: Optional[str] = None
     duration_ms: int = 0
     value: Optional[str] = None 

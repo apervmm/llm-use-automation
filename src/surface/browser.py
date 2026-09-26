@@ -1,9 +1,9 @@
 import time
 from pathlib import Path
-from playwright.sync_api import sync_playwright, Page, Browser, TimeoutError as PWTimeout, Error as PWError
+from playwright.sync_api import sync_playwright, Page, Browser, Error as PWError
 from safety.allowlist import Allowlist, PolicyViolation
 
-from .types import ActionResult, ElementRef, LocatorStrategy
+from .types import ActionResult, ElementRef
 from .helpers import (
     failed,
     is_top_level_navigation,
