@@ -7,9 +7,6 @@ from pydantic import BaseModel, Field, model_validator
 from surface.types import ElementRef
 
 
-
-
-
 class ParamType(str, Enum):
     STRING = "string"
     NUMBER = "number"
@@ -59,9 +56,11 @@ class OutcomeRule(BaseModel):
     expected: str
     description: str = ""                        
 
+
 class RiskLevel(str, Enum):
     SAFE = "safe"
     RISKY = "risky"
+
 
 class Capability(BaseModel):
     capability_id: str                     
