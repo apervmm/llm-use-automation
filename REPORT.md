@@ -43,7 +43,7 @@ A capability such as `artifacts/parabank.request_loan.v1.json` is one JSON file 
 1. `capability_id` and `version`: The name, always starting with the app (parabank.request_loan), and a version that goes up each time it's recorded again
 2. `description`: The discovery goal, with recorded values replaced by placeholders (amount '{amount}')
 3. `target_app` and `entry_url`: The app, and the page replay starts from
-4. `inputs`: What the caller must provide: name, type (number or string), whether it's required, and an example
+4. `inputs`: What the caller must provide: name, type (number or string), whether it's required, and an example that goes through the redaction
 5. `outputs`: What replay returns, and where each value comes from
 6. `steps`: the recorded actions, in order
 7. `checkpoint`: The one condition that means success, e.g. the page shows "Congratulations, your loan has been approved"
@@ -66,15 +66,14 @@ A capability such as `artifacts/parabank.request_loan.v1.json` is one JSON file 
 
 ### Why are Capability and Step shaped this way?
 1. A saved version is never changed. Recording again creates `v2`, so older versions still replay exactly as before.
-2. Inputs are declared once in the `inputs` list (name, type, whether required, an example), and the steps refer to them by placeholder, like `"value": "{amount}"`. The values themselves arrive only at replay. So a caller can see what to provide without reading the steps, the same recording works with any amount, and no step contains a password or account number.
+2. Inputs are declared once in the `inputs` list (name, type, whether required, an example), and the steps refer to them by placeholder, like `"value": "{amount}"`. The values themselves arrive only at replay. So a caller can see what to provide without reading the steps, the same recording works with any amount, and neither the steps nor the examples contain a password or a full account number.
 3. Outputs are also listed separately from the steps, so a caller can see what comes back without reading how it's produced.
 4. Each step stores a main locator plus `fallbacks`, tried in order if the main one stops working. Each locator records its kind (`strategy`) separately from its `value`, so another type of software, such as a desktop program, only needs new kinds of locators, not a new format (see Section 4).
 5. Capability should be able to judge different types of results, not only what succeeded, but also expected "no" answers (business outcomes), so anything else can be reported as failure (see Section 3)
 6. The start page should be separate from the steps, since it tells the condition to start from, but not the action to take at each step. And keeping it apart helps the address change per client (see Section 4)
 7. The risk level is stored in the file, since anyone reading or calling the capability sees that it's risky before running it. Also, it helps to construct the logic around **Human-In-The-Loop** (see Section 5)
 8. Each capability should be single-purposed, such as logging in or requesting a loan. One that depends on another names it instead of copying its steps: `capabilities/loan.yaml` sets `auth_capability_id: parabank.login`, and the CLI replays the login first. A change to the login is then made in one place, and capabilities can be combined and chained.
-
-
+   
 
 ## 3. Determinism & error handling
 
