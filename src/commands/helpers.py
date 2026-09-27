@@ -34,7 +34,14 @@ def parse_pairs(text: str) -> dict:
     """
         amount=1000,down_payment=10 -> {'amount': '1000', 'down_payment': '10'}
     """
-    return dict(pair.split("=", 1) for pair in text.split(",") if pair)
+    result = {}
+    for pair in filter(None, text.split(",")):
+        key, sep, value = pair.partition("=")
+        if not sep or not key.strip():
+            raise click.BadParameter(f"Expected key=value, got '{pair}'", param_hint="--inputs")
+        result[key.strip()] = value
+    return result
+    #return dict(pair.split("=", 1) for pair in text.split(",") if pair)
 
 
 def new_evidence_dir(kind: str, capability_id: str) -> tuple[str, str]:
