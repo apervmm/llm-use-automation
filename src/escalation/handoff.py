@@ -1,51 +1,16 @@
-
-from enum import Enum
-from datetime import datetime, timezone
-from dataclasses import dataclass, field
-from pathlib import Path
-import uuid
-
 from surface.browser import BrowserSession
 
+from .helpers import bring_to_front_quietly, save_escalation_screenshot
+from .types import EscalationReason, EscalationRequest, HandoffState, OperatorDecision
 
 
-class OperatorDecision(str, Enum):
-    RESUME = "resume"  # human stops
-    ABORT = "abort"   # human aborts
-
-
-class EscalationReason(str, Enum):
-    DISCOVERY_STUCK = "discovery_stuck" # hitting max step, no tooling, or dead-end
-    REPLAY_FAILURE = "replay_failure"      # unrecoverable replay failure
-    RISKY_CONFIRMATION = "risky_confirmation" 
-
-
-@dataclass
-class EscalationRequest:
-    reason: EscalationReason
-    capability_or_goal: str
-    current_step: int | None
-    current_url: str
-    detail: str
-    screenshot_path: str | None = None
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    run_id: str | None = None 
-
-class HandoffState:
-    def __init__(self):
-        self.automation_in_control = True
-        self.human_actions_log: list[str] = []
-
-    def transfer_to_human(self):
-        self.automation_in_control = False
-
-    def resume_automation(self):
-        self.automation_in_control = True
-
-    def record_human_action(self, description: str):
-        self.human_actions_log.append(description)
-
-
+__all__ = [
+    "raise_escalation", 
+    "EscalationReason", 
+    "EscalationRequest", 
+    "HandoffState", 
+    "OperatorDecision"
+]
 
 
 def raise_escalation(
@@ -58,23 +23,8 @@ def raise_escalation(
     evidence_dir: str = "evidence/escalations",
     run_id: str | None = None, 
 ) -> EscalationRequest:
-    
-    try:
-        session.bring_to_front()
-    except Exception:
-        pass
-    
-    screenshot_path = None
-
-    try:
-        Path(evidence_dir).mkdir(parents=True, exist_ok=True)
-        screenshot_path = f"{evidence_dir}/escalation_{uuid.uuid4().hex}.png"
-        session.screenshot(screenshot_path)
-    except Exception:
-        screenshot_path = None  
-
-
-
+    bring_to_front_quietly(session)
+    screenshot_path = save_escalation_screenshot(session, evidence_dir)
     state.transfer_to_human()
 
     return EscalationRequest(

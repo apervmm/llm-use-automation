@@ -1,6 +1,6 @@
 """replay outs"""
 from artifact.schema import Capability, OutcomeRule, OutputField
-from replay.executor import _check_outcomes, _extract_outputs, _fill
+from replay.helpers import check_outcomes, extract_outputs, fill
 from replay.outcomes import ReplayStatus
 
 
@@ -33,26 +33,28 @@ GENERAL = OutcomeRule(
 
 def test_first_matching_outcome_rule_wins():
     page = FakePage("We cannot grant a loan in that amount with your available funds and down payment.")
-    assert _check_outcomes(page, [SPECIFIC, GENERAL]) == "insufficient_funds_and_down_payment"
+    assert check_outcomes(page, [SPECIFIC, GENERAL]) == "insufficient_funds_and_down_payment"
 
 
 def test_no_matching_rule_returns_none():
-    assert _check_outcomes(FakePage("Something unexpected happened."), [SPECIFIC, GENERAL]) is None
+    assert check_outcomes(FakePage("Something unexpected happened."), [SPECIFIC, GENERAL]) is None
 
 
 def test_url_rules_match_the_current_address():
     rule = OutcomeRule(name="logged_out", kind="url_contains", expected="index.htm")
-    assert _check_outcomes(FakePage(url="http://localhost:8080/parabank/index.htm"), [rule]) == "logged_out"
+    assert check_outcomes(FakePage(url="http://localhost:8080/parabank/index.htm"), [rule]) == "logged_out"
 
 
 def test_derived_output_reports_success(loan_capability):
-    outputs = _extract_outputs(loan_capability, {"new_account_id": "14000"}, status=ReplayStatus.SUCCESS)
+    outputs = extract_outputs(loan_capability, {"new_account_id": "14000"}, status=ReplayStatus.SUCCESS)
     assert outputs == {"loan_status": "success", "new_account_id": "14000"}
 
 
 def test_derived_output_reports_the_business_outcome_name(loan_capability):
-    outputs = _extract_outputs(loan_capability, {}, status=ReplayStatus.BUSINESS_OUTCOME,
-                               outcome_name="insufficient_funds")
+    outputs = extract_outputs(
+        loan_capability, {},
+        status=ReplayStatus.BUSINESS_OUTCOME,
+        outcome_name="insufficient_funds")
     assert outputs["loan_status"] == "insufficient_funds"
     assert outputs["new_account_id"] is None
 
@@ -63,13 +65,13 @@ def test_success_flag_output_follows_the_result():
         entry_url="http://localhost:8080/parabank/index.htm",
         outputs=[OutputField(name="login_succeeded")]
     )
-    assert _extract_outputs(
+    assert extract_outputs(
         capability, 
         {}, 
         status=ReplayStatus.SUCCESS
     ) == {"login_succeeded": "true"}
 
-    assert _extract_outputs(
+    assert extract_outputs(
         capability, 
         {}, 
         status=ReplayStatus.BUSINESS_OUTCOME,
@@ -78,7 +80,7 @@ def test_success_flag_output_follows_the_result():
 
 
 def test_failure_report_shows_the_callers_actual_value():
-    assert _fill(
+    assert fill(
         "Select '{from_account_id}' in 'From account #:'", 
         {"from_account_id": "99999"}
     ) == "Select '99999' in 'From account #:'"

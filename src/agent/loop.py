@@ -1,48 +1,25 @@
-from dataclasses import dataclass, field
 from pathlib import Path
 
 from surface.browser import BrowserSession
-from surface.perception import snapshot
-from surface.types import PageState, ElementRef
-
-from .llm_client import LLMClient
-from .prompts import SYSTEM_PROMPT, TOOLS
-
-
+from surface.types import PageState
 from escalation.handoff import (
     raise_escalation,
     EscalationReason,
-    HandoffState,
     OperatorDecision,
 )
 
-
-@dataclass
-class TranscriptStep:
-    step_num: int
-    page_url: str
-    tool_name: str
-    tool_input: dict
-    success: bool
-    detail: str
-    screenshot_path: str | None = None
-    resolved_ref: ElementRef | None = None 
+from .llm_client import LLMClient
+from .prompts import SYSTEM_PROMPT, TOOLS
+from .types import AgentRunResult, TranscriptStep
+from .run import DiscoveryRun
+from .helpers import execute_tool, first_tool_use, observation_text, take_snapshot, tool_result_turn, user_turn
 
 
-@dataclass
-class AgentRunResult:
-    goal: str
-    success: bool
-    stop_reason: str
-    transcript: list[TranscriptStep] = field(default_factory=list)
-    outputs: dict = field(default_factory=dict)
-    escalations: list[dict] = field(default_factory=list)
+__all__ = ["AgentLoop", "AgentRunResult", "TranscriptStep"]
 
 
 class AgentLoop:
-
     STUCK_FAILURE_THRESHOLD = 3 # Limit on consecutive failures before escalation
-
     STUCK_STEP_EXTENSION = 3 # Number of additional steps to allow after an escalation before giving up
 
     def __init__(
@@ -66,202 +43,110 @@ class AgentLoop:
 
 
     def run(self, goal: str, start_url: str) -> AgentRunResult:
-
         nav = self.session.goto(start_url)
         if not nav.success:
             return AgentRunResult(goal, False, f"entry_unreachable: {nav.error}")
-        
-        transcript: list[TranscriptStep] = []
-        outputs: dict = {}
-        escalations: list[dict] = []
-
-        state = snapshot(self.session, screenshot_path=f"{self.evidence_dir}/step_0.png")
-        messages = [{"role": "user", "content": self._observation_text(goal, state)}]
-
-        handoff_state = HandoffState()
-        escalations_used = 0
-        consecutive_failures = 0
-        step_limit = self.max_steps
-
-
-
-        # for step_num in range(1, self.max_steps + 1):
+        run = DiscoveryRun(goal=goal, step_limit=self.max_steps, state=self._snapshot("step_0"))
+        run.messages.append(user_turn(observation_text(goal, run.state)))
         step_num = 1
         while True:
-            if step_num > step_limit:
-                if self.on_escalation and escalations_used < self.max_escalations:
-                    decision, escalation_record = self._escalate(
-                        handoff_state, goal, step_num,
-                        f"Reached max_steps ({step_limit}) without completing the goal.",
-                    )
-                    escalations.append(escalation_record)
-                    escalations_used += 1
-                    if decision == OperatorDecision.ABORT:
-                        return AgentRunResult(goal, False, "aborted_by_operator",transcript, outputs, escalations)
-                    if decision == OperatorDecision.RESUME:
-                        step_limit += self.STUCK_STEP_EXTENSION
-                        state = snapshot(self.session, screenshot_path=f"{self.evidence_dir}/step_{step_num}_resumed.png")
-                        messages.append({"role": "user", "content": self._observation_text(goal, state)})
-                        continue
-                return AgentRunResult(goal, False, "max_steps_exceeded", transcript, outputs, escalations)
-
-            response = self.llm.decide(messages, SYSTEM_PROMPT, TOOLS)
-            tool_use = next((b for b in response.content if b.type == "tool_use"), None)
-
-            if tool_use is None:
-                if self.on_escalation and escalations_used < self.max_escalations:
-                    decision, escalation_record = self._escalate(
-                        handoff_state, goal, step_num,
-                        "Model did not return a tool call — no clear next action.",
-                    )
-
-                    escalations.append(escalation_record)
-                    escalations_used += 1
-                    if decision == OperatorDecision.ABORT:
-                        return AgentRunResult(goal, False, "aborted_by_operator",transcript, outputs, escalations)
-                    if decision == OperatorDecision.RESUME:
-                        state = snapshot(self.session, screenshot_path=f"{self.evidence_dir}/step_{step_num}_resumed.png")
-                        messages.append({"role": "user", "content": self._observation_text(goal, state)})
-                        continue
-                return AgentRunResult(goal, False, "no_tool_call", transcript, outputs, escalations)
-
-            messages.append({"role": "assistant", "content": response.content})
-
-            if tool_use.name == "done":
-                outputs = tool_use.input.get("outputs", {})
-                transcript.append(TranscriptStep(
-                    step_num, state.url, "done", tool_use.input, True, "goal completed"))
-                return AgentRunResult(goal, True, "goal_met", transcript, outputs, escalations)
-
-            result_text, state, ref, success= self._execute(tool_use, state, step_num)
-            # success = "ERROR" not in result_text
-            consecutive_failures = 0 if success else consecutive_failures + 1
-
-
-            transcript.append(TranscriptStep(
-                step_num, 
-                state.url, 
-                tool_use.name, 
-                tool_use.input, 
-                success, 
-                result_text,
-                screenshot_path=f"{self.evidence_dir}/step_{step_num}.png",
-                resolved_ref=ref
-            ))
-
-            if (not success and consecutive_failures >= self.STUCK_FAILURE_THRESHOLD
-                    and self.on_escalation and escalations_used < self.max_escalations):
-                decision, escalation_record = self._escalate(
-                    handoff_state, goal, step_num,
-                    f"{consecutive_failures} consecutive failed actions — agent appears stuck.",
-                )
-
-                escalations.append(escalation_record)
-                escalations_used += 1
-
-                if decision == OperatorDecision.ABORT:
-                    return AgentRunResult(goal, False, "aborted_by_operator", transcript, outputs, escalations)
-                consecutive_failures = 0
-                state = snapshot(self.session, screenshot_path=f"{self.evidence_dir}/step_{step_num}_resumed.png")
-                messages.append({
-                    "role": "user",
-                    "content": [{"type": "tool_result", "tool_use_id": tool_use.id, "content": result_text}],
-                })
-                messages.append({"role": "user", "content": self._observation_text(None, state, include_goal=False)})
-                step_num += 1
+            if step_num > run.step_limit:
+                if final := self._on_step_limit(run, step_num):
+                    return final
                 continue
-
-            messages.append({
-                "role": "user",
-                "content": [{
-                    "type": "tool_result",
-                    "tool_use_id": tool_use.id,
-                    "content": result_text,
-                }],
-            })
-
+            response = self.llm.decide(run.messages, SYSTEM_PROMPT, TOOLS)
+            tool_use = first_tool_use(response)
+            if tool_use is None:
+                if final := self._on_no_tool_call(run, step_num):
+                    return final
+                continue
+            run.messages.append({"role": "assistant", "content": response.content})
+            if tool_use.name == "done":
+                return self._finish(run, step_num, tool_use)
+            if final := self._act(run, step_num, tool_use):
+                return final
             step_num += 1
 
 
-    def _escalate(self, handoff_state: HandoffState, goal: str, step_num: int, detail: str) -> OperatorDecision:
-        req = raise_escalation(
+    def _act(self, run: DiscoveryRun, step_num: int, tool_use) -> AgentRunResult | None:
+        result_text, run.state, ref, success = execute_tool(
+            self.session, tool_use, run.state, step_num, self.evidence_dir)
+        run.consecutive_failures = 0 if success else run.consecutive_failures + 1
+        run.transcript.append(TranscriptStep(
+            step_num, run.state.url, tool_use.name, tool_use.input, success, result_text,
+            screenshot_path=f"{self.evidence_dir}/step_{step_num}.png",
+            resolved_ref=ref,
+        ))
+        stuck = not success and run.consecutive_failures >= self.STUCK_FAILURE_THRESHOLD
+        if stuck and self._can_escalate(run):
+            decision = self._escalate(
+                run, step_num, f"{run.consecutive_failures} consecutive failed actions — agent appears stuck.")
+            if decision == OperatorDecision.ABORT:
+                return run.result(False, "aborted_by_operator")
+            run.consecutive_failures = 0
+            run.state = self._snapshot(f"step_{step_num}_resumed")
+            run.messages.append(tool_result_turn(tool_use.id, result_text))
+            run.messages.append(user_turn(observation_text(None, run.state, include_goal=False)))
+            return None
+        run.messages.append(tool_result_turn(tool_use.id, result_text))
+        return None
+    
+
+    def _finish(self, run: DiscoveryRun, step_num: int, tool_use) -> AgentRunResult:
+        run.outputs = tool_use.input.get("outputs", {})
+        run.transcript.append(TranscriptStep(step_num, run.state.url, "done", tool_use.input, True, "goal completed"))
+        return run.result(True, "goal_met")
+
+
+    def _on_step_limit(self, run: DiscoveryRun, step_num: int) -> AgentRunResult | None:
+        if self._can_escalate(run):
+            decision = self._escalate(run, step_num, f"Reached max_steps ({run.step_limit}) without completing the goal.")
+            if decision == OperatorDecision.ABORT:
+                return run.result(False, "aborted_by_operator")
+            if decision == OperatorDecision.RESUME:
+                run.step_limit += self.STUCK_STEP_EXTENSION
+                self._observe_again(run, step_num)
+                return None
+        return run.result(False, "max_steps_exceeded")
+    
+
+    def _on_no_tool_call(self, run: DiscoveryRun, step_num: int) -> AgentRunResult | None:
+        if self._can_escalate(run):
+            decision = self._escalate(run, step_num, "Model did not return a tool call — no clear next action.")
+            if decision == OperatorDecision.ABORT:
+                return run.result(False, "aborted_by_operator")
+            if decision == OperatorDecision.RESUME:
+                self._observe_again(run, step_num)
+                return None
+        return run.result(False, "no_tool_call")
+
+
+    def _can_escalate(self, run: DiscoveryRun) -> bool:
+        return bool(self.on_escalation) and len(run.escalations) < self.max_escalations
+    
+
+    def _escalate(self, run: DiscoveryRun, step_num: int, detail: str) -> OperatorDecision:
+        request = raise_escalation(
             self.session,
-            handoff_state,
-            EscalationReason.DISCOVERY_STUCK,
-            goal,
+            run.handoff_state, 
+            EscalationReason.DISCOVERY_STUCK, 
+            run.goal,
             detail,
-            current_step=step_num,
+            current_step=step_num, 
             evidence_dir=self.evidence_dir, 
             run_id=self.run_id,
         )
-        return self.on_escalation(req, handoff_state)
+        decision, record = self.on_escalation(request, run.handoff_state)
+        run.escalations.append(record)
+        return decision
             
-    def _execute(
-        self, 
-        tool_use, 
-        state: PageState, 
-        step_num: int
-    ) -> tuple[str, PageState, ElementRef | None, bool]:
-        
-        name, inp = tool_use.name, tool_use.input
 
-        if name == "click":
-            ref = state.find_ref(inp["element_name"], inp.get("role"))
-            if ref is None:
-                return f"ERROR: no element named '{inp['element_name']}' found on this page.",  state, None, False
-            result = self.session.click(ref, description=inp["element_name"])
-        elif name == "type_text":
-            ref = state.find_ref(inp["element_name"], "textbox")
-            if ref is None:
-                return f"ERROR: no textbox named '{inp['element_name']}' found on this page.",  state, None, False
-            result = self.session.type_text(ref, inp["text"], description=inp["element_name"])
-        elif name == "navigate":
-            ref = None
-            result = self.session.goto(inp["url"])
-        elif name == "select_option":
-            ref = state.find_ref(inp["element_name"], "combobox")
-            if ref is None:
-                return f"ERROR: no dropdown named '{inp['element_name']}' found on this page.", state, None, False
-            result = self.session.select_option(ref, inp["option_value"], description=inp["element_name"])
-        elif name == "read":
-            ref = None
-            element_name = inp.get("element_name")
-            if element_name:
-                ref = state.find_ref(element_name)
-            return f"Recorded {inp['label']} = {inp['value']}.", state, ref, True
-        else:
-            return f"ERROR: unknown tool '{name}'.", state, None, False
-        
-
-        if not result.success:
-            return f"ERROR: {name} failed — {result.error}", state, ref, False
-
-        self.session.wait(500)
-
-        new_state = snapshot(self.session, screenshot_path=f"{self.evidence_dir}/step_{step_num}.png")
-        
-        return f"{name} succeeded. New page: {self._observation_text(None, new_state, include_goal=False)}", new_state, ref, True
+    def _observe_again(self, run: DiscoveryRun, step_num: int) -> None:
+        run.consecutive_failures = 0
+        run.state = self._snapshot(f"step_{step_num}_resumed")
+        run.messages.append(user_turn(observation_text(run.goal, run.state)))
 
 
-    def _observation_text(self, goal: str | None, state: PageState, include_goal: bool = True) -> str:
-        lines = []
-        for el in state.interactive_elements:
-            line = f"- [{el.role}] '{el.accessible_name}'"
-            if el.options:
-                line += f" (options: {', '.join(el.options)})"
-            lines.append(line)
-        elements = "\n".join(lines)
-
-        parts = []
-        if include_goal and goal:
-            parts.append(f"GOAL: {goal}\n")
-        parts.append(f"Current URL: {state.url}\nPage title: {state.title}")
-        parts.append(f"Interactive elements:\n{elements}")
-        parts.append(f"Visible text (truncated): {state.visible_text_summary[:500]}")
-        result = "\n\n".join(parts)
-
-        # print({"------OBSERVATION------"})
-        # print(result)
-        # print("-----------------------")
-
-        return result
+    def _snapshot(self, name: str) -> PageState:
+        return take_snapshot(self.session, self.evidence_dir, name)
+    
