@@ -6,7 +6,6 @@ from surface.types import ElementRef, PageState
 
 
 # ---------- Observing page -------------
-
 def take_snapshot(session: BrowserSession, evidence_dir: str, name: str) -> PageState:
     return snapshot(session, screenshot_path=f"{evidence_dir}/{name}.png")
 
