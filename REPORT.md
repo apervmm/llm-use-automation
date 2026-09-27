@@ -34,7 +34,55 @@ The system runs a task in two ways. In discovery, an AI agent works out how to c
 
 ## 2. Artifact schema
 
-A capability such as `artifacts/parabank.request_loan.v1.json` is one JSON file per version. It's written to be read by two audiences: a person reviewing it, and a program calling it. Both can see what it does, what it needs, what it returns, and how success is judged.
+A capability such as `artifacts/parabank.request_loan.v1.json` is one JSON file per version. It's written to be read by two audiences: a person reviewing it, and a program calling it. Both can see what it does, what it needs, what it returns, and how success is judged. Here's a Capability schema trimmed to one step, one input, and one fallback.
+
+```
+{
+    "capability_id": "parabank.request_loan", "version": 1,
+    "description": "Recorded from goal: Apply for a loan with amount '{amount}' and down payment '{down_payment}'. Select an account ... ",
+    "target_app": "parabank",
+    "entry_url": "http://localhost:8080/parabank/requestloan.htm",
+    "inputs": [{
+        "name": "from_account_id",
+        "type": "number",
+        "description": "",
+        "required": true,
+        "example": "***33"}
+    ],
+    "outputs": [{
+        "name": "new_account_id",
+        "type": "string",
+        "description": "",
+        "source_label": "new_account_id",
+        "derived_from_outcome": false}
+    ],
+    "steps": [{
+        "step_num": 3,
+        "action": "select_option",
+        "target": {
+          "strategy": "css",
+          "value": "#fromAccountId",
+          "role": "combobox",
+          "expected_name": "From account #:",
+          "fallbacks": [{"strategy": "role_name", "value": "From account #:", "role": "combobox", "expected_name": "From account #:", "fallbacks": []}
+          ]
+        },
+        "value": "{from_account_id}",
+        "read_label": null,
+        "description": "Select '{from_account_id}' in 'From account #:'"}
+    ],
+    "checkpoint": { "kind": "text_visible", "expected": "Congratulations, your loan has been approved."
+    },
+    "created_at": "2026-09-27T12:09:14.743487+00:00",
+    "outcome_rules": [{
+        "name": "insufficient_funds",
+        "kind": "text_visible",
+        "expected": "We cannot grant a loan in that amount with your available funds.",
+        "description": ""}
+    ],
+    "risk_level": "risky"
+  }
+```
 
 
 
