@@ -4,6 +4,7 @@ import pytest
 from agent.loop import AgentRunResult, TranscriptStep
 from artifact.recorder import record
 from artifact.schema import Checkpoint, ParamType, RiskLevel, StepAction
+from artifact.helpers import build_inputs
 
 LOGIN_URL = "http://localhost:8080/parabank/index.htm"
 LOAN_URL = "http://localhost:8080/parabank/requestloan.htm"
@@ -85,6 +86,14 @@ def test_cannot_record_from_a_failed_run():
     with pytest.raises(ValueError):
         _record_login(_login_run(success=False))
 
+
+def test_input_examples_hide_secrets_and_mask_accounts():
+    params = build_inputs({"john": "username", "demo": "password", "13122": "from_account_id"})
+    assert {p.name: p.example for p in params} == {
+        "username": "john",
+        "password": "[REDACTED]",
+        "from_account_id": "***22",
+    }
 
 def test_loan_is_recorded_as_risky_with_number_inputs():
     run = AgentRunResult(

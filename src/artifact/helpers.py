@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from safety.redaction import is_secret_name
+from safety.redaction import is_secret_name, redact_any
 from .schema import InputParam, OutputField, ParamType, Step, StepAction
 
 if TYPE_CHECKING:
@@ -111,7 +111,8 @@ def build_inputs(param_map: dict[str, str]) -> list[InputParam]:
         InputParam(
             name=name,
             type=infer_type(literal),
-            example="[REDACTED]" if is_secret_name(name) else literal,
+            # example="[REDACTED]" if is_secret_name(name) else literal,
+            example=redact_any({name: literal})[name]
         )
         for literal, name in param_map.items()
     ]
