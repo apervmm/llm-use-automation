@@ -1,6 +1,6 @@
 from surface.browser import BrowserSession
 
-from .helpers import bring_to_front_quietly, save_escalation_screenshot
+from .utils import bring_to_front_quietly, save_escalation_screenshot
 from .types import EscalationReason, EscalationRequest, HandoffState, OperatorDecision
 
 

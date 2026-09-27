@@ -12,7 +12,7 @@ from .llm_client import LLMClient
 from .prompts import SYSTEM_PROMPT, TOOLS
 from .types import AgentRunResult, TranscriptStep
 from .run import DiscoveryRun
-from .helpers import execute_tool, first_tool_use, observation_text, take_snapshot, tool_result_turn, user_turn
+from .utils import execute_tool, first_tool_use, observation_text, take_snapshot, tool_result_turn, user_turn
 
 
 __all__ = ["AgentLoop", "AgentRunResult", "TranscriptStep"]

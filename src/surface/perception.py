@@ -2,16 +2,12 @@ from pathlib import Path
 
 from .types import PageState, InteractiveElement, ElementRef, LocatorStrategy
 from .browser import BrowserSession
-from .helpers import to_interactive_element, trimmed_text
+from .utils import to_interactive_element, trimmed_text
 
 
 
 _SCRIPT_PATH = Path(__file__).parent / "scripts" / "extract_elements.js"
 _EXTRACT_JS = _SCRIPT_PATH.read_text()
-_ROLE_TO_ELEMENT_TYPE = {
-    "button": "button", "link": "link", "textbox": "textbox",
-    "checkbox": "checkbox", "radio": "checkbox", "combobox": "select",
-}
 
 
 def snapshot(session: BrowserSession, screenshot_path: str | None = None) -> PageState:
