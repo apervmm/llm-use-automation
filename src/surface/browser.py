@@ -4,7 +4,7 @@ from playwright.sync_api import sync_playwright, Page, Browser, Error as PWError
 from safety.allowlist import Allowlist, PolicyViolation
 
 from .types import ActionResult, ElementRef
-from .helpers import (
+from .utils import (
     failed,
     is_top_level_navigation,
     policy_refusal,

@@ -9,7 +9,7 @@ from escalation.operator_cli import to_operator
 from observability.logger import log_discovery
 from replay.checkpoint import checkpoint_met
 from surface.browser import BrowserSession
-from .helpers import authenticate_if_needed, build_param_map, copy_to_evidence, load_config, new_evidence_dir, secret_literals
+from .utils import authenticate_if_needed, build_param_map, copy_to_evidence, load_config, new_evidence_dir, secret_literals
 
 
 @click.command()

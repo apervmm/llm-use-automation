@@ -6,7 +6,7 @@ from observability.logger import log_replay
 from replay.executor import input_errors, replay as run_replay
 from replay.outcomes import ReplayStatus
 from surface.browser import BrowserSession
-from .helpers import authenticate_if_needed, load_config, new_evidence_dir, parse_pairs, print_replay_result
+from .utils import authenticate_if_needed, load_config, new_evidence_dir, parse_pairs, print_replay_result
 
 
 @click.command()

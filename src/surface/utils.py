@@ -2,8 +2,6 @@
 turning locators into live elements
 building locator chains, 
 assembling ActionResults
-
-Used only by browser.py and perception.py.
 """
 import time
 
@@ -14,14 +12,12 @@ from .types import ActionResult, ElementRef, InteractiveElement, LocatorStrategy
 
 
 # ----------------Locator stability ----------------------
-
 def is_stable_css(selector: str) -> bool:
     """An #id or [name=...] selector survives layout changes; a positional path doesn't."""
     return selector.startswith("#") or "[name=" in selector
 
 
 # -------------- locator to live ele ---------------------
-
 _ACCESSIBLE_NAME_JS = "el => (el.getAttribute('aria-label') || el.innerText || el.textContent || '').trim()"
 
 
@@ -80,7 +76,6 @@ def resolve_locator(page: Page, ref: ElementRef) -> Locator:
 
 
 # --------------  failures --------------
-
 def diagnose_select_failure(loc: Locator, value: str) -> str:
     """Explains in plain words why a dropdown selection failed"""
     try:
@@ -124,7 +119,6 @@ def is_top_level_navigation(request: Request) -> bool:
 
 
 # -------------- Building ActionResults --------------
-
 def elapsed_ms(start: float) -> int:
     return int((time.time() - start) * 1000)
 
@@ -156,7 +150,6 @@ def policy_refusal(allowlist: Allowlist, action: str, url: str, label: str) -> A
 
 
 # -------------- Perception --------------
-
 ROLE_TO_ELEMENT_TYPE = {
     "button": "button", 
     "link": "link", 

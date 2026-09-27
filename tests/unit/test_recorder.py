@@ -4,7 +4,7 @@ import pytest
 from agent.loop import AgentRunResult, TranscriptStep
 from artifact.recorder import record
 from artifact.schema import Checkpoint, ParamType, RiskLevel, StepAction
-from artifact.helpers import build_inputs
+from artifact.utils import build_inputs
 
 LOGIN_URL = "http://localhost:8080/parabank/index.htm"
 LOAN_URL = "http://localhost:8080/parabank/requestloan.htm"

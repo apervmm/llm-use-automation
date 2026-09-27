@@ -1,5 +1,5 @@
 from pathlib import Path
-from .helpers import load_policy_config, matches_any, resolve_allowed_domains, split_url
+from .utils import load_policy_config, matches_any, resolve_allowed_domains, split_url
 
 
 _CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "allowlist.yaml"

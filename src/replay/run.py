@@ -5,7 +5,7 @@ from artifact.schema import Capability, Step
 from escalation.handoff import EscalationReason, HandoffState, OperatorDecision, raise_escalation
 from surface.browser import BrowserSession
 from surface.types import ActionResult
-from .helpers import extract_outputs, fill
+from .utils import extract_outputs, fill
 from .outcomes import ReplayResult, ReplayStatus
 
 
