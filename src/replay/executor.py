@@ -1,15 +1,19 @@
-import re
 from surface.browser import BrowserSession
-from artifact.schema import Capability, StepAction, Checkpoint, OutcomeRule, RiskLevel, ParamType
-from escalation.handoff import raise_escalation, EscalationReason, HandoffState, OperatorDecision
-from .outcomes import ReplayResult, ReplayStatus
-from safety.redaction import redact_any
-from replay.checkpoint import checkpoint_met
+from artifact.schema import Capability, StepAction, Step, RiskLevel
+from escalation.handoff import EscalationReason, OperatorDecision
+from .outcomes import ReplayResult
 from safety.allowlist import Allowlist
 from artifact.store import qualify
-from surface.types import ActionResult
-
-_PLACEHOLDER = re.compile(r"\{(\w+)\}")
+from .helpers import (
+    check_outcomes,
+    number_errors,
+    referenced_params,
+    risky_confirmation_detail,
+    run_step,
+    substitute,
+    wait_for_checkpoint,
+)
+from .run import ReplayRun
 
 
 def replay(
@@ -26,403 +30,149 @@ def replay(
     
     Checkpoint miss => checks declared outcome_rules before concluding it's a hard failure.
     """
-
-
-    handoff_state = HandoffState()
-    escalations: list[dict] = [] 
-
+    run = ReplayRun(session, capability, inputs, on_escalation, run_id, evidence_dir)
     if errors := input_errors(capability, inputs):
-        return ReplayResult(
-            status=ReplayStatus.FAILURE,
-            capability_id=capability.capability_id,
-            failed_step=0, 
-            expected="valid inputs", 
-            observed="; ".join(errors),
-            error=f"Invalid inputs: {'; '.join(errors)}",
-        )
+        joined = "; ".join(errors)
+        return run.failure(f"Invalid inputs: {joined}", failed_step=0, expected="valid inputs", observed=joined)
 
-    full_id = qualify(capability.capability_id, capability.target_app)
-    is_risky = capability.risk_level == RiskLevel.RISKY or Allowlist().is_risky(full_id)
-
-    if is_risky and not confirmed:
-        if on_escalation:
-            safe_inputs = redact_any(dict(inputs))
-            params_summary = ", ".join(f"{k}={v}" for k, v in safe_inputs.items())
-            context = _try_extract_account_context(session, inputs)
-            req = raise_escalation(
-                session, 
-                handoff_state, 
-                EscalationReason.RISKY_CONFIRMATION,
-                capability.capability_id,
-                f"This will submit a NEW loan application with: {params_summary}.{context}",
-                evidence_dir=evidence_dir,
-                run_id=run_id,
-            )
-
-            decision, escalation_record = on_escalation(req, handoff_state)
-            escalations.append(escalation_record)
-
-            if decision == OperatorDecision.ABORT:
-                return ReplayResult(
-                    status=ReplayStatus.FAILURE, 
-                    capability_id=capability.capability_id,
-                    error="Replay aborted by operator during risky-confirmation escalation.",
-                    escalations=escalations
-                )
-            
-            if decision == OperatorDecision.RESUME:
-                confirmed = True 
-
-        if not confirmed:
-            return ReplayResult(
-                status=ReplayStatus.FAILURE,
-                capability_id=capability.capability_id,
-                error=(f"'{capability.capability_id}' requires confirmed=True to replay."),
-                escalations=escalations
-            )
+    if _is_risky(capability) and not confirmed:
+        if refusal := _confirm_risky_run(run):
+            return refusal
         
-    # _validate_inputs(capability, inputs)
-
-    nav_result = session.goto(capability.entry_url)
-
-    if not nav_result.success:
-        return ReplayResult(
-            status=ReplayStatus.FAILURE,
-            capability_id=capability.capability_id,
+    nav = session.goto(capability.entry_url)
+    if not nav.success:
+        return run.failure(
+            f"Failed to reach entry URL: {nav.error}", 
             failed_step=0,
-            expected=f"navigate to {capability.entry_url}",
-            observed=nav_result.error,
-            error=f"Failed to reach entry URL: {nav_result.error}",
-            escalations=escalations,
+            expected=f"navigate to {capability.entry_url}", 
+            observed=nav.error
         )
 
-    read_values: dict[str, str] = {}
-    step_index = 0
-    # steps = capability.steps
-    steps = sorted(capability.steps, key=lambda s: s.step_num)  
+    steps = sorted(capability.steps, key=lambda s: s.step_num)
+    for step in steps:
+        if final := _run_step_with_recovery(run, step):
+            return final
 
-
-    # for step in capability.steps:
-    while step_index < len(steps):
-        step = steps[step_index]
-        value = _substitute(step.value, inputs) if step.value else None
-        result = _run_step(session, step, value)
-        if result is not None and result.policy_violation:
-            return _policy_failure(capability, step, result, inputs, escalations)
-
-        if result is not None and result.policy_violation:
-            return ReplayResult(
-                status=ReplayStatus.FAILURE,
-                capability_id=capability.capability_id,
-                failed_step=step.step_num,
-                expected=_fill(step.description, inputs),
-                observed=result.error,
-                error=f"Policy violation at step {step.step_num}: {result.error}",
-                escalations=escalations,
-            )
-
-        # if step.action == StepAction.READ:
-        #     if result is not None and result.success:
-        #         read_values[step.read_label] = result.value
-        #     step_index += 1
-        #     continue
-
-        if step.action == StepAction.READ:
-            if step.target is None:
-                step_index += 1
-                continue
-            if result is not None and result.success:
-                read_values[step.read_label] = result.value
-                step_index += 1
-                continue
-
-        if result is None or not result.success:
-            error_text = result.error if result else "no action executed"
-
-            outcome = _check_outcomes(session, capability.outcome_rules)
-            if outcome:
-                return ReplayResult(
-                    status=ReplayStatus.BUSINESS_OUTCOME,
-                    capability_id=capability.capability_id,
-                    outcome_name=outcome,
-                    outputs=_extract_outputs(capability, read_values, status=ReplayStatus.BUSINESS_OUTCOME, outcome_name=outcome),
-                    escalations=escalations,
-                )
-            if on_escalation:
-                req = raise_escalation(
-                    session, 
-                    handoff_state, 
-                    EscalationReason.REPLAY_FAILURE,
-                    capability.capability_id,
-                    f"Step {step.step_num} ({step.action.value}) failed: {error_text}",
-                    current_step=step.step_num,
-                    evidence_dir=evidence_dir,
-                    run_id=run_id,
-                )
-
-
-                decision, escalation_record = on_escalation(req, handoff_state)
-                escalations.append(escalation_record)
-                
-
-
-                if decision == OperatorDecision.RESUME:
-                    session.pop_dialogs()
-                    retry_result = _run_step(session, step, value)
-
-                    if retry_result is not None and retry_result.policy_violation:
-                        return _policy_failure(capability, step, retry_result, inputs, escalations)
-                    
-                    if retry_result is not None and retry_result.success:
-                        step_index += 1
-                        continue
-                    
-                    outcome = _check_outcomes(session, capability.outcome_rules)
-                    if outcome:
-                        return ReplayResult(
-                            status=ReplayStatus.BUSINESS_OUTCOME,
-                            capability_id=capability.capability_id,
-                            outcome_name=outcome,
-                            outputs=_extract_outputs(capability, read_values, status=ReplayStatus.BUSINESS_OUTCOME, outcome_name=outcome),
-                            escalations=escalations,
-                        )
-                    
-
-                    retry_error = retry_result.error if retry_result else error_text
-
-                    return ReplayResult(
-                        status=ReplayStatus.FAILURE,
-                        capability_id=capability.capability_id,
-                        failed_step=step.step_num,
-                        expected=_fill(step.description, inputs),
-                        observed=retry_error,
-                        error=f"Step {step.step_num} ({step.action.value}) failed even after operator intervention: {retry_error}",
-                        escalations=escalations,
-                    )
-            return ReplayResult(
-                status=ReplayStatus.FAILURE,
-                capability_id=capability.capability_id,
-                failed_step=step.step_num,
-                expected=_fill(step.description, inputs),
-                observed=error_text,
-                error=f"Step {step.step_num} ({step.action.value}) failed: {error_text}",
-                escalations=escalations,
-            )
-
-        step_index += 1  
-
-
-
-    if capability.checkpoint and not _wait_for_checkpoint(session, capability.checkpoint):
-        outcome = _check_outcomes(session, capability.outcome_rules)
-        if outcome:
-            return ReplayResult(
-                status=ReplayStatus.BUSINESS_OUTCOME,
-                capability_id=capability.capability_id,
-                outcome_name=outcome,
-                outputs=_extract_outputs(capability, read_values, status=ReplayStatus.BUSINESS_OUTCOME, outcome_name=outcome),
-                escalations=escalations,
-            )
-        
-
-        if on_escalation:
-            req = raise_escalation(
-                session,
-                handoff_state,
-                EscalationReason.REPLAY_FAILURE,
-                capability.capability_id,
-                f"Checkpoint not met: {capability.checkpoint.kind}={capability.checkpoint.expected}",
-                current_step=steps[-1].step_num if steps else None,
-                evidence_dir=evidence_dir,
-                run_id=run_id,
-            )
-            
-            decision, escalation_record = on_escalation(req, handoff_state)
-            escalations.append(escalation_record)
-
-            if decision == OperatorDecision.RESUME and _wait_for_checkpoint(session, capability.checkpoint):
-                outputs = _extract_outputs(capability, read_values, status=ReplayStatus.SUCCESS)
-                return ReplayResult(
-                    status=ReplayStatus.SUCCESS, 
-                    capability_id=capability.capability_id, 
-                    outputs=outputs,
-                    escalations=escalations,
-                )
-
-
-
-        return ReplayResult(
-            status=ReplayStatus.FAILURE,
-            capability_id=capability.capability_id,
-            failed_step=steps[-1].step_num if steps else None,
-            expected=f"{capability.checkpoint.kind}={capability.checkpoint.expected}",
-            observed=session.get_url(),
-            error="Checkpoint not met and no matching business outcome found.",
-            escalations=escalations,
-        )
-    
-
-    outputs = _extract_outputs(capability, read_values, status=ReplayStatus.SUCCESS)
-    return ReplayResult(
-        status=ReplayStatus.SUCCESS, 
-        capability_id=capability.capability_id, 
-        outputs=outputs,
-        escalations=escalations,
-    )
-
-
-# def _validate_inputs(capability: Capability, inputs: dict) -> None:
-#     missing = [p.name for p in capability.inputs if p.required and p.name not in inputs]
-#     if missing:
-#         raise ValueError(f"Missing required input(s): {missing}")
+    return _conclude(run, last_step=steps[-1].step_num if steps else None)
 
 
 def input_errors(capability: Capability, inputs: dict) -> list[str]:
     declared = {p.name for p in capability.inputs}
-    referenced = {m for s in capability.steps if s.value for m in _PLACEHOLDER.findall(s.value)}
     missing = sorted(p.name for p in capability.inputs if p.required and p.name not in inputs)
     errors = []
     if missing:
         errors.append(f"missing required input(s): {missing}")
     if unknown := sorted(set(inputs) - declared):
         errors.append(f"unknown input(s): {unknown}")
-    if unsupplied := sorted(referenced - set(inputs) - set(missing)):
+    if unsupplied := sorted(referenced_params(capability.steps) - set(inputs) - set(missing)):
         errors.append(f"steps reference params with no value: {unsupplied}")
-
-    for p in capability.inputs:
-           if p.type == ParamType.NUMBER and p.name in inputs:
-               try:
-                   float(inputs[p.name])
-               except ValueError:
-                   errors.append(f"'{p.name}' must be a number, got {inputs[p.name]!r}")
-
+    errors.extend(number_errors(capability.inputs, inputs))
     return errors
 
 
-def _substitute(template: str, inputs: dict) -> str:
-    """Replace every {param_name} in a step's value with the supplied input"""
-    def _sub(match):
-        key = match.group(1)
-        if key not in inputs:
-            raise ValueError(f"Step references unknown param '{{{key}}}'")
-        return str(inputs[key])
-    return re.sub(r"\{(\w+)\}", _sub, template)
+def _is_risky(capability: Capability) -> bool:
+    """Risky if the artifact says so, or if the current allowlist does (patterns added after recording still apply)."""
+    full_id = qualify(capability.capability_id, capability.target_app)
+    return capability.risk_level == RiskLevel.RISKY or Allowlist().is_risky(full_id)
 
 
-def _fill(text: str, inputs: dict) -> str:
-    """A step description with the caller's actual values in place of {placeholders}."""
-    for key, val in inputs.items():
-        text = text.replace("{" + key + "}", str(val))
-    return text
-
-def _check_outcomes(session: BrowserSession, rules: list[OutcomeRule]) -> str | None:
-    session.wait(500)
-    page_text = session.get_visible_text()
-    for rule in rules:
-        if rule.kind == "text_visible" and rule.expected in page_text:
-            return rule.name
-        if rule.kind == "url_contains" and rule.expected in session.get_url():
-            return rule.name
-    return None
-
-
-def _extract_outputs(
-    capability: Capability, 
-    read_values: dict,
-    status: ReplayStatus | None = None,
-    outcome_name: str | None = None
-) -> dict:
-    outputs = {}
-    for field in capability.outputs:
-        if field.derived_from_outcome:
-            if status == ReplayStatus.SUCCESS:
-                outputs[field.name] = "success"
-            elif status == ReplayStatus.BUSINESS_OUTCOME:
-                outputs[field.name] = outcome_name
-            else:
-                outputs[field.name] = None
-        elif field.source_label in read_values:
-            outputs[field.name] = read_values[field.source_label]
-        elif "succeed" in field.name.lower() or "success" in field.name.lower():
-            outputs[field.name] = "true" if status == ReplayStatus.SUCCESS else "false"
-        else:
-            outputs[field.name] = None
-    return outputs
-
-
-def _wait_for_checkpoint(
-        session: BrowserSession, 
-        checkpoint: Checkpoint, 
-        timeout_ms: int = 5000, 
-        interval_ms: int = 250
-    ) -> bool:
-    """Poll instead of a single point-in-time check — async redirects/renders
-    can legitimately take a moment after the triggering action completes."""
-    elapsed = 0
-    while elapsed < timeout_ms:
-        if checkpoint_met(session, checkpoint):
-            return True
-        session.wait(interval_ms)
-        elapsed += interval_ms
-    return checkpoint_met(session, checkpoint)
+def _confirm_risky_run(run: ReplayRun) -> ReplayResult | None:
+    """A risky run needs the operator's go-ahead before step 1. Returns a failure, or None to proceed."""
+    if run.on_escalation:
+        decision = run.escalate(EscalationReason.RISKY_CONFIRMATION,
+                                risky_confirmation_detail(run.session, run.inputs))
+        if decision == OperatorDecision.ABORT:
+            return run.failure("Replay aborted by operator during risky-confirmation escalation.")
+        if decision == OperatorDecision.RESUME:
+            return None
+    return run.failure(f"'{run.capability_id}' requires confirmed=True to replay.")
 
 
 
-def _execute_step(session: BrowserSession, step, value: str | None):
+def _run_step_with_recovery(run: ReplayRun, step: Step) -> ReplayResult | None:
     """
-        Dispatches one step to the browser
-        Returns an ActionResult, or None if there was nothing to execute 
+    Run one step. Returns a final result if the run ends here, or None to continue
+
+    On failure: a policy violation stops at once
+    a matching outcome rule ends the run as BUSINESS_OUTCOME
+    otherwise the operator is asked, and on resume the step is retried
     """
-    if step.action == StepAction.NAVIGATE:
-        return session.goto(value)
-    if step.action == StepAction.CLICK:
-        return session.click(step.target, description=step.description)
-    if step.action == StepAction.TYPE_TEXT:
-        return session.type_text(step.target, value, description=step.description)
-    if step.action == StepAction.SELECT_OPTION:
-        return session.select_option(step.target, value, description=step.description)
+    value = substitute(step.value, run.inputs) if step.value else None
+    result = run_step(run.session, step, value)
+
+    if result is not None and result.policy_violation:
+        return run.policy_failure(step, result)
+
     if step.action == StepAction.READ:
         if step.target is None:
+            return None  
+        if result is not None and result.success:
+            run.read_values[step.read_label] = result.value
             return None
-        return session.read_text(step.target, description=step.description)
-    return None
+
+    if result is not None and result.success:
+        return None
+
+    error_text = result.error if result else "no action executed"
+    if outcome := check_outcomes(run.session, run.capability.outcome_rules):
+        return run.business_outcome(outcome)
+
+    decision = run.escalate(
+        EscalationReason.REPLAY_FAILURE,
+        f"Step {step.step_num} ({step.action.value}) failed: {error_text}",
+        current_step=step.step_num
+    )
+    if decision == OperatorDecision.RESUME:
+        return _retry_after_operator(run, step, value, error_text)
+
+    return run.step_failure(step, error_text, f"Step {step.step_num} ({step.action.value}) failed: {error_text}")
 
 
-def _run_step(session: BrowserSession, step, value: str | None):
-    """Execute one step; a step that caused a JS dialog counts as failed."""
-    result = _execute_step(session, step, value)
-    dialogs = session.pop_dialogs()
-    if dialogs and result is not None and result.success:
-        result = ActionResult(False, result.action, result.target_description,
-                              error=f"Unexpected dialog(s) dismissed: {dialogs}")
-    return result
+def _retry_after_operator(run: ReplayRun, step: Step, value: str | None, first_error: str) -> ReplayResult | None:
+    run.session.pop_dialogs() 
+    retry = run_step(run.session, step, value)
 
+    if retry is not None and retry.policy_violation:
+        return run.policy_failure(step, retry)
+    if retry is not None and retry.success:
+        return None
+    if outcome := check_outcomes(run.session, run.capability.outcome_rules):
+        return run.business_outcome(outcome)
 
-def _policy_failure(capability: Capability, step, result, inputs: dict, escalations: list) -> ReplayResult:
-    return ReplayResult(
-        status=ReplayStatus.FAILURE,
-        capability_id=capability.capability_id,
-        failed_step=step.step_num,
-        expected=_fill(step.description, inputs),
-        observed=result.error,
-        error=f"Policy violation at step {step.step_num}: {result.error}",
-        escalations=escalations,
+    error = retry.error if retry else first_error
+    return run.step_failure(
+        step, 
+        error,
+        f"Step {step.step_num} ({step.action.value}) failed even after operator intervention: {error}"
     )
 
-def _try_extract_account_context(session: BrowserSession, inputs: dict) -> str:
-    """Best-effort: if the current page already shows account balances (e.g.
-    we just came from Accounts Overview) and the inputs reference an
-    account, surface that account's real current state — not just the
-    numbers being submitted, which alone say nothing about whether they're
-    reasonable."""
-    account_id = inputs.get("from_account_id")
-    if not account_id:
-        return ""
-    try:
-        text = session.get_visible_text()
-        for line in text.splitlines():
-            if account_id in line:
-                return f" Current state of account {account_id} shown on this page: \"{line.strip()}\""
-    except Exception:
-        pass
-    return ""
+
+def _conclude(run: ReplayRun, last_step: int | None) -> ReplayResult:
+    """
+    After the last step: 
+    SUCCESS if the checkpoint is met
+    else BUSINESS_OUTCOME if an outcome rule matches
+    else ask the operator before FAILURE
+    """
+    checkpoint = run.capability.checkpoint
+    if not checkpoint or wait_for_checkpoint(run.session, checkpoint):
+        return run.success()
+
+    if outcome := check_outcomes(run.session, run.capability.outcome_rules):
+        return run.business_outcome(outcome)
+
+    expected = f"{checkpoint.kind}={checkpoint.expected}"
+    decision = run.escalate(
+        EscalationReason.REPLAY_FAILURE, 
+        f"Checkpoint not met: {expected}",
+        current_step=last_step
+    )
+    if decision == OperatorDecision.RESUME and wait_for_checkpoint(run.session, checkpoint):
+        return run.success()
+
+    return run.failure(
+        "Checkpoint not met and no matching business outcome found.",
+        failed_step=last_step, 
+        expected=expected, 
+        observed=run.session.get_url()
+    )

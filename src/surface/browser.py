@@ -85,10 +85,10 @@ class BrowserSession:
         label = description or ref.value
         if refusal := policy_refusal(self.allowlist, "select_option", self.page.url, label):
             return refusal
-        
+    
         start = time.time()
         try:
-            loc = self._resolve(ref)
+            loc = resolve_locator(self.page, ref)
         except Exception as e:
             return ActionResult(False, "select_option", label, error=str(e))
         
