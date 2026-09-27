@@ -17,10 +17,7 @@ The system runs a task in two ways. In discovery, an AI agent works out how to c
 
 - **Recorder and store (`src/artifact/`):** turn a successful agent run into a Capability artifact (Section 2) and save it as a new version in /artifacts/.
   
-- **Surface (`src/surface/`):** is `BrowserSession` together with `perception.py`: a wrapper around one Playwright browser session. Agent, Replay, and the escalation module act on the page only through it; nothing outside `src/surface/` calls Playwright directly. It provides:
-  1. **Actions**: `click`, `type_text`, `select_option`, `read_text`, and `goto`. Each checks the allowlist first and returns an ActionResult.
-  2. **Observation**: `perception.snapshot(session)` builds a PageState for the agent: the interactive elements (each with a locator and fallbacks), the visible text, and a screenshot.
-  3. **Helpers** used by replay and escalation: `get_url`, `get_visible_text`, `wait`, `is_visible`, `screenshot`, `bring_to_front`, and `pop_dialogs`, which reports any JavaScript dialog that appeared and was dismissed.
+- **Surface (`src/surface/`):** is a wrapper around one Playwright session. Agent, Replay, and the escalation module act on the page only through it; nothing outside `src/surface/` calls Playwright directly. 
 
 - **Escalation (`src/escalation/`):** pauses the run and asks a person when the system is stuck or needs approval (Section 5).
   
