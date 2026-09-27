@@ -6,7 +6,7 @@ from pathlib import Path
 from agent.loop import AgentRunResult
 from replay.outcomes import ReplayResult
 from safety.redaction import redact_any
-
+from .helpers import account_values, discovery_account_values, timestamp, to_jsonable, write_summary
 
 def _timestamp() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -47,30 +47,24 @@ def log_discovery(
     """
         Writes a structured summary of a discovery run alongside the screenshots AgentLoop already saved into evidence_dir
     """
-    out_dir = Path(evidence_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-
     summary = {
         "run_type": "discovery",
         "run_id": run_id,
-        "timestamp": _timestamp(),
+        "timestamp": timestamp(),
         "goal": result.goal,
         "success": result.success,
         "stop_reason": result.stop_reason,
         "escalations": result.escalations,
         "outputs": result.outputs,
-        "transcript": [_to_jsonable(step) for step in result.transcript],
+        "transcript": [to_jsonable(step) for step in result.transcript],
     }
 
-    summary = redact_any(
+    safe = redact_any(
         summary, 
         sensitive_values=set(sensitive_values or []),
-        masked_values=_discovery_account_values(result)
+        masked_values=discovery_account_values(result)
     )
-
-    path = out_dir / "result.json"
-    path.write_text(json.dumps(summary, indent=2))
-    return path
+    return write_summary(evidence_dir, safe)
 
 
 def log_replay(
@@ -82,13 +76,10 @@ def log_replay(
     """
         Writes a structured summary of a single replay invocation
     """
-    out_dir = Path(evidence_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-
     summary = {
         "run_type": "replay",
         "run_id": run_id,
-        "timestamp": _timestamp(),
+        "timestamp": timestamp(),
         "inputs": {k: ("[REDACTED]" if "password" in k.lower() else v) for k, v in inputs.items()},
         "status": result.status.value,
         "capability_id": result.capability_id,
@@ -100,11 +91,7 @@ def log_replay(
         "error": result.error,
         "escalations": result.escalations,
     }
-
     secrets = {str(v) for k, v in inputs.items() if k.lower() in ("password", "pin", "ssn") and v}
-    accounts = {str(v) for k, v in {**inputs, **(result.outputs or {})}.items() if "account" in k.lower() and str(v).isdigit()}
-    summary = redact_any(summary, sensitive_values=secrets, masked_values=accounts)
-
-    path = out_dir / "result.json"
-    path.write_text(json.dumps(summary, indent=2))
-    return path
+    accounts = account_values({**inputs, **(result.outputs or {})})
+    safe = redact_any(summary, sensitive_values=secrets, masked_values=accounts)
+    return write_summary(evidence_dir, safe)

@@ -7,7 +7,6 @@ from agent.loop import AgentRunResult
 
 
 def timestamp() -> str:
-    """UTC"""
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
