@@ -84,33 +84,6 @@ A capability such as `artifacts/parabank.request_loan.v1.json` is one JSON file 
   }
 ```
 
-
-
-### Capability Structure
-1. `capability_id` and `version`: The name, always starting with the app (parabank.request_loan), and a version that goes up each time it's recorded again
-2. `description`: The discovery goal, with recorded values replaced by placeholders (amount '{amount}')
-3. `target_app` and `entry_url`: The app, and the page replay starts from
-4. `inputs`: What the caller must provide: name, type (number or string), whether it's required, and an example that goes through the redaction
-5. `outputs`: What replay returns, and where each value comes from
-6. `steps`: the recorded actions, in order
-7. `checkpoint`: The one condition that means success, e.g. the page shows "Congratulations, your loan has been approved"
-8. `outcome_rules`: Known answers that aren't success, e.g. insufficient_funds
-9. `risk_level`: safe or risky, set automatically (Section 6)
-10. `created_at`:When it was recorded
-
-### Step Structure
-1. `step_num`: The step's position. Replay runs steps in this order, and two steps can't share a number
-2. `action`: What to do: `click`, `type_text`, `select_option`, `navigate`, or `read`
-3. `target`: The element to act on (empty for `navigate`, and for a `read` that isn't tied to an element):
-    - `strategy` and `value`: The main locator: how to find the element (`css`, `role_name`, or `text`) and what to look for, e.g., `#fromAccountId`.
-    - `role`: The element's type, like button, link, or `combobox` (dropdown)
-    - `expected_name`: The element's visible name, checked when a button or link is found by a fallback
-    - `fallbacks`: Other locators to try in order if the main one fails, each with the same fields
-4. `value`: What to type or select, usually a placeholder such as `{from_account_id}`, filled from the caller's inputs
-5. `read_label`: For `read` steps, the name the value is saved under and matched to an output (empty otherwise)
-6. `description`: A readable summary. When a step fails, replay fills in the caller's actual values like `Select '99999' in 'From account #:'`.
-
-
 ### Why are Capability and Step shaped this way?
 1. A saved version is never changed. Recording again creates `v2`, so older versions still replay exactly as before.
 2. Inputs are declared once in the `inputs` list (name, type, whether required, an example), and the steps refer to them by placeholder, like `"value": "{amount}"`. The values themselves arrive only at replay. So a caller can see what to provide without reading the steps, the same recording works with any amount, and neither the steps nor the examples contain a password or a full account number.
