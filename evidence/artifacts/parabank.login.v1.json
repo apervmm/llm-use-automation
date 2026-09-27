@@ -1,0 +1,128 @@
+{
+  "capability_id": "parabank.login",
+  "version": 1,
+  "description": "Recorded from goal: Log in with username '{username}' and password '{password}'. When calling done, include output keys 'login_succeeded' and 'message'.\n",
+  "target_app": "parabank",
+  "entry_url": "http://localhost:8080/parabank/index.htm",
+  "inputs": [
+    {
+      "name": "username",
+      "type": "string",
+      "description": "",
+      "required": true,
+      "example": "john"
+    },
+    {
+      "name": "password",
+      "type": "string",
+      "description": "",
+      "required": true,
+      "example": "[REDACTED]"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "login_succeeded",
+      "type": "string",
+      "description": "",
+      "source_label": "login_succeeded",
+      "derived_from_outcome": false
+    },
+    {
+      "name": "message",
+      "type": "string",
+      "description": "",
+      "source_label": "message",
+      "derived_from_outcome": false
+    }
+  ],
+  "steps": [
+    {
+      "step_num": 1,
+      "action": "type_text",
+      "target": {
+        "strategy": "css",
+        "value": "input[name=\"username\"]",
+        "role": "textbox",
+        "expected_name": "Username",
+        "fallbacks": [
+          {
+            "strategy": "role_name",
+            "value": "Username",
+            "role": "textbox",
+            "expected_name": "Username",
+            "fallbacks": []
+          }
+        ]
+      },
+      "value": "{username}",
+      "read_label": null,
+      "description": "Type into 'Username'"
+    },
+    {
+      "step_num": 2,
+      "action": "type_text",
+      "target": {
+        "strategy": "css",
+        "value": "input[name=\"password\"]",
+        "role": "textbox",
+        "expected_name": "Password",
+        "fallbacks": [
+          {
+            "strategy": "role_name",
+            "value": "Password",
+            "role": "textbox",
+            "expected_name": "Password",
+            "fallbacks": []
+          }
+        ]
+      },
+      "value": "{password}",
+      "read_label": null,
+      "description": "Type into 'Password'"
+    },
+    {
+      "step_num": 3,
+      "action": "click",
+      "target": {
+        "strategy": "role_name",
+        "value": "Log In",
+        "role": "button",
+        "expected_name": "Log In",
+        "fallbacks": [
+          {
+            "strategy": "text",
+            "value": "Log In",
+            "role": null,
+            "expected_name": "Log In",
+            "fallbacks": []
+          },
+          {
+            "strategy": "css",
+            "value": "div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > div > form > div:nth-of-type(3) > input",
+            "role": "button",
+            "expected_name": "Log In",
+            "fallbacks": []
+          }
+        ]
+      },
+      "value": null,
+      "read_label": null,
+      "description": "Click 'Log In'"
+    }
+  ],
+  "checkpoint": {
+    "kind": "url_contains",
+    "expected": "/overview.htm"
+  },
+  "created_at": "2026-09-27T12:08:51.271132+00:00",
+  "outcome_rules": [
+    {
+      "name": "invalid_credentials",
+      "kind": "text_visible",
+      "expected": "could not be verified",
+      "description": ""
+    }
+  ],
+  "risk_level": "safe"
+}

@@ -1,0 +1,46 @@
+{
+  "run_type": "replay",
+  "run_id": "506c209369aa",
+  "timestamp": "20260927T121126Z",
+  "inputs": {
+    "amount": "1000",
+    "down_payment": "10",
+    "from_account_id": "***99"
+  },
+  "status": "failure",
+  "capability_id": "parabank.request_loan",
+  "outputs": {},
+  "outcome_name": null,
+  "failed_step": 3,
+  "expected": "Select '***99' in 'From account #:'",
+  "observed": "The dropdown has 29 option(s): ['54321', '13566', '12345', '13677', '13788', '13899', '12456', '14010', '14121', '12567', '14232', '12678', '14343', '14454', '14565', '12789', '14676', '12900', '14787', '14898', '13011', '15009', '15120', '13122', '15231', '15342', '13233', '15453', '13344']. '***99' isn't one of them. | raw error: TimeoutError: Locator.select_option: Timeout 5000ms exceeded.",
+  "error": "Step 3 (select_option) failed even after operator intervention: The dropdown has 29 option(s): ['54321', '13566', '12345', '13677', '13788', '13899', '12456', '14010', '14121', '12567', '14232', '12678', '14343', '14454', '14565', '12789', '14676', '12900', '14787', '14898', '13011', '15009', '15120', '13122', '15231', '15342', '13233', '15453', '13344']. '***99' isn't one of them. | raw error: TimeoutError: Locator.select_option: Timeout 5000ms exceeded.",
+  "escalations": [
+    {
+      "reason": "risky_confirmation",
+      "capability_or_goal": "parabank.request_loan",
+      "current_step": null,
+      "current_url": "http://localhost:8080/parabank/overview.htm",
+      "detail": "This will run the risky capability 'parabank.request_loan' with: amount=1000, down_payment=10, from_account_id=***99.",
+      "screenshot_path": "evidence/replay_request_loan_20260927T121058Z_506c209369aa/escalation_3a8e738ffb7041ae9c55ce7452514a3d.png",
+      "timestamp": "2026-09-27T12:11:00.493391+00:00",
+      "operator_decision": "resume",
+      "human_actions": [
+        "approving risky loan"
+      ]
+    },
+    {
+      "reason": "replay_failure",
+      "capability_or_goal": "parabank.request_loan",
+      "current_step": 3,
+      "current_url": "http://localhost:8080/parabank/requestloan.htm",
+      "detail": "Step 3 (select_option) failed: The dropdown has 29 option(s): ['54321', '13566', '12345', '13677', '13788', '13899', '12456', '14010', '14121', '12567', '14232', '12678', '14343', '14454', '14565', '12789', '14676', '12900', '14787', '14898', '13011', '15009', '15120', '13122', '15231', '15342', '13233', '15453', '13344']. '***99' isn't one of them. | raw error: TimeoutError: Locator.select_option: Timeout 5000ms exceeded.",
+      "screenshot_path": "evidence/replay_request_loan_20260927T121058Z_506c209369aa/escalation_d2d2892984b1474ab66dde125a38ebcd.png",
+      "timestamp": "2026-09-27T12:11:13.610959+00:00",
+      "operator_decision": "resume",
+      "human_actions": [
+        "needs to try again"
+      ]
+    }
+  ]
+}
