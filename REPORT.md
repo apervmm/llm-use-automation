@@ -39,6 +39,8 @@ The system runs a task in two ways. In discovery, an AI agent works out how to c
 
 A capability such as `artifacts/parabank.request_loan.v1.json` is one JSON file per version. It's written to be read by two audiences: a person reviewing it, and a program calling it. Both can see what it does, what it needs, what it returns, and how success is judged.
 
+
+
 ### Capability Structure
 1. `capability_id` and `version`: The name, always starting with the app (parabank.request_loan), and a version that goes up each time it's recorded again
 2. `description`: The discovery goal, with recorded values replaced by placeholders (amount '{amount}')
@@ -61,7 +63,7 @@ A capability such as `artifacts/parabank.request_loan.v1.json` is one JSON file 
     - `fallbacks`: Other locators to try in order if the main one fails, each with the same fields
 4. `value`: What to type or select, usually a placeholder such as `{from_account_id}`, filled from the caller's inputs
 5. `read_label`: For `read` steps, the name the value is saved under and matched to an output (empty otherwise)
-6. `description`: A readable summary. When a step fails, replay fills in the caller's actual values, e.g. `Select '99999' in 'From account #:'`.
+6. `description`: A readable summary. When a step fails, replay fills in the caller's actual values like `Select '99999' in 'From account #:'`.
 
 
 ### Why are Capability and Step shaped this way?
