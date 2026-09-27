@@ -141,7 +141,7 @@ def refused(action: str, label: str, error) -> ActionResult:
     return ActionResult(False, action, label, error=str(error), policy_violation=True)
 
 
-def policy_refusal(allowlist: Allowlist, action: str, url: str, label: str, reported_as: str | None = None) -> ActionResult | None:
+def policy_refusal(allowlist: Allowlist, action: str, url: str, label: str) -> ActionResult | None:
     """
     Checks the allowlist before acting
     Returns a refused result, or None
@@ -151,7 +151,7 @@ def policy_refusal(allowlist: Allowlist, action: str, url: str, label: str, repo
     try:
         allowlist.check_action(action, url=url)
     except PolicyViolation as e:
-        return refused(reported_as or action, label, e)
+        return refused(action, label, e)
     return None
 
 

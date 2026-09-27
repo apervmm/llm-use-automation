@@ -71,16 +71,20 @@ def input_errors(capability: Capability, inputs: dict) -> list[str]:
 
 
 def _is_risky(capability: Capability) -> bool:
-    """Risky if the artifact says so, or if the current allowlist does (patterns added after recording still apply)."""
     full_id = qualify(capability.capability_id, capability.target_app)
     return capability.risk_level == RiskLevel.RISKY or Allowlist().is_risky(full_id)
 
 
 def _confirm_risky_run(run: ReplayRun) -> ReplayResult | None:
-    """A risky run needs the operator's go-ahead before step 1. Returns a failure, or None to proceed."""
+    """ 
+        A risky run needs the operator's go-ahead before step 1
+        Returns a failure or None to proceed
+    """
     if run.on_escalation:
-        decision = run.escalate(EscalationReason.RISKY_CONFIRMATION,
-                                risky_confirmation_detail(run.session, run.inputs))
+        decision = run.escalate(
+            EscalationReason.RISKY_CONFIRMATION,
+            risky_confirmation_detail(run.session, run.capability_id, run.inputs)
+        )
         if decision == OperatorDecision.ABORT:
             return run.failure("Replay aborted by operator during risky-confirmation escalation.")
         if decision == OperatorDecision.RESUME:
@@ -135,6 +139,8 @@ def _retry_after_operator(run: ReplayRun, step: Step, value: str | None, first_e
     if retry is not None and retry.policy_violation:
         return run.policy_failure(step, retry)
     if retry is not None and retry.success:
+        if step.action == StepAction.READ:
+            run.read_values[step.read_label] = retry.value
         return None
     if outcome := check_outcomes(run.session, run.capability.outcome_rules):
         return run.business_outcome(outcome)

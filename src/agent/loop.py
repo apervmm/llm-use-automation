@@ -142,6 +142,7 @@ class AgentLoop:
             
 
     def _observe_again(self, run: DiscoveryRun, step_num: int) -> None:
+        run.consecutive_failures = 0
         run.state = self._snapshot(f"step_{step_num}_resumed")
         run.messages.append(user_turn(observation_text(run.goal, run.state)))
 

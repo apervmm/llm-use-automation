@@ -129,13 +129,13 @@ def account_context(session: BrowserSession, inputs: dict) -> str:
     return ""
 
 
-def risky_confirmation_detail(session: BrowserSession, inputs: dict) -> str:
+def risky_confirmation_detail(session: BrowserSession, capability_id: str, inputs: dict) -> str:
     """
         What the operator reads before approving a risky run
         Secret inputs are redacted
     """
     params = ", ".join(f"{k}={v}" for k, v in redact_any(dict(inputs)).items())
-    return f"This will submit a NEW loan application with: {params}.{account_context(session, inputs)}"
+    return f"This will run the risky capability '{capability_id}' with: {params}.{account_context(session, inputs)}"
 
 
 # --------------- Outputs ---------------

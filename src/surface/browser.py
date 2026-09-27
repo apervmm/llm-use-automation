@@ -104,7 +104,7 @@ class BrowserSession:
 
     def type_text(self, ref: ElementRef, text: str, description: str = "") -> ActionResult:
         label = description or ref.value
-        if refusal := policy_refusal(self.allowlist, "type_text", self.page.url, label, reported_as="type"):
+        if refusal := policy_refusal(self.allowlist, "type_text", self.page.url, label):
             return refusal
         
         start = time.time()
@@ -112,9 +112,9 @@ class BrowserSession:
             loc = resolve_locator(self.page, ref)
             loc.fill("", timeout=5000)
             loc.fill(text, timeout=5000)
-            return succeeded("type", label, start)
+            return succeeded("type_text", label, start)
         except Exception as e:
-            return failed("type", label, e)
+            return failed("type_text", label, e)
         
 
     # ------  Observation and utilities (used by replay and escalation) -----
