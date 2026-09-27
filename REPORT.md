@@ -279,7 +279,7 @@ In replay, a blocked action ends the run immediately, and the operator can't ove
 Partially discussed in Section 5, Capabilities that move money or open accounts (loan requests, transfers, bill payments, new accounts) are marked risky, based on their name. Before one runs, the operator sees exactly what will be submitted and the current account balance, and must approve it. Blocking these capabilities would make them useless, and only flagging them would let a loan be requested without anyone checking. 
 
 ### Sensitive Data
-1. Saved capabilities contain placeholders like `{password}` instead of real values. If a password would otherwise end up in the file, recording fails.
+1. Saved capabilities/artifacts contain placeholders like `{password}` instead of real values. If a password would otherwise end up in the file, recording fails.
 2. Run logs hide passwords, PINs, Social Security numbers, card-length numbers, and login credentials wherever they appear:
     ```
       "inputs": {
