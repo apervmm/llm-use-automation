@@ -5,5 +5,7 @@ __pycache__/
 .pytest_cache/
 /src/scripts/*
 /.vscode/
+tmp.json
+scratch.md
 
 
