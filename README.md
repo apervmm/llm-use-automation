@@ -59,7 +59,7 @@ The project uses two live services: the LLM API (I used Anthropic) and ParaBank 
   
 ## Demo path
 
-### 1. Discovery: 
+### 1. Discovery: exploration
 The loan capability replays the login capability first (auth_capability_id in capabilities/loan.yaml), so record the login first.
 
 * 1.1 To create an LLM discovery artifact and evidence to log in
