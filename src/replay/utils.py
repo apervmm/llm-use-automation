@@ -14,6 +14,7 @@ from surface.browser import BrowserSession
 from surface.types import ActionResult
 from .checkpoint import checkpoint_met
 from .outcomes import ReplayStatus
+from actions import Action, ActionKind, execute
 
 
 

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from .types import PageState, InteractiveElement, ElementRef, LocatorStrategy
+from .types import PageState
 from .browser import BrowserSession
 from .utils import to_interactive_element, trimmed_text
 
