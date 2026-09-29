@@ -29,7 +29,7 @@
    Add your own Anthropic key in `ANTHROPIC_API_KEY` 
 
 ## Running Parabank on Docker
-The public ParaBank `parabank.parasoft.com` is a shared sandbox that resets periodically and can return server-side errors unrelated to this project. For reliable, reproducible runs, I would recommend using a local Docker instance
+The public ParaBank `parabank.parasoft.com` is a shared sandbox that resets periodically and can return server-side errors unrelated to this project. For reliable and reproducible runs, I would recommend using a local Docker instance
 
 1. Start the container:
    ```bash
